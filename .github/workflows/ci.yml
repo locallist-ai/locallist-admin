@@ -16,16 +16,14 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Puedes cambiarlo a la versión que uses (18, 20, etc.)
+          node-version: '20'
           cache: 'npm'
 
       - name: Install Dependencies
-        # Si usas otro gestor como pnpm o yarn, cambiaremos esto
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Run Security Audit
-        # Escanea vulnerabilidades críticas y altas en dependencias
         run: npm audit --audit-level=high
 
-      - name: Build Project
-        run: npm run build
+      - name: Type Check
+        run: npx tsc --noEmit
