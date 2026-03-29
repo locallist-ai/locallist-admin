@@ -29,8 +29,20 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
     const translateX = useSharedValue(0);
     const translateY = useSharedValue(0);
 
+    const handleEdit = () => {
+        router.push(`/place/${place.id}`);
+    };
+
+    const tapGesture = Gesture.Tap()
+        .enabled(isTop)
+        .onEnd(() => {
+            runOnJS(handleEdit)();
+        });
+
     const panGesture = Gesture.Pan()
         .enabled(isTop)
+        .activeOffsetX([-15, 15])
+        .activeOffsetY([-15, 15])
         .onUpdate((event) => {
             translateX.value = event.translationX;
             translateY.value = event.translationY;
@@ -49,6 +61,8 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
                 translateY.value = withSpring(0);
             }
         });
+
+    const composedGesture = Gesture.Exclusive(panGesture, tapGesture);
 
     const animatedStyle = useAnimatedStyle(() => {
         const rotate = interpolate(translateX.value, [-width / 2, 0, width / 2], [-10, 0, 10]);
@@ -73,10 +87,6 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
     const cardHeight = height * 0.7;
     const photoUrl = place.photos?.[0];
 
-    const handleEdit = () => {
-        router.push(`/place/${place.id}`);
-    };
-
     const cardContent = (
         <Animated.View
             style={[
@@ -99,11 +109,6 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
             <Animated.View style={[styles.label, styles.likeLabel, likeStyle]}>
                 <Text style={[styles.labelText, { color: colors.successEmerald }]}>APPROVE</Text>
             </Animated.View>
-
-            {/* Edit button */}
-            <Pressable style={styles.editBtn} onPress={handleEdit} hitSlop={8}>
-                <Text style={styles.editIcon}>✎</Text>
-            </Pressable>
 
             {/* Info overlay — intentionally dark over photos */}
             <View style={styles.overlay}>
@@ -144,16 +149,13 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
 
     return (
         <View style={showButtons ? styles.cardWithButtons : undefined}>
-            <GestureDetector gesture={panGesture}>
+            <GestureDetector gesture={composedGesture}>
                 {cardContent}
             </GestureDetector>
             {showButtons && isTop && (
                 <View style={styles.buttonRow}>
                     <Pressable style={styles.rejectButton} onPress={onReject}>
                         <Text style={styles.rejectButtonText}>Reject</Text>
-                    </Pressable>
-                    <Pressable style={styles.editButton} onPress={handleEdit}>
-                        <Text style={styles.editButtonText}>Edit</Text>
                     </Pressable>
                     <Pressable style={styles.approveButton} onPress={onApprove}>
                         <Text style={styles.approveButtonText}>Approve</Text>
@@ -268,23 +270,6 @@ const styles = StyleSheet.create({
         borderColor: colors.successEmerald,
         transform: [{ rotate: '-15deg' }],
     },
-    editBtn: {
-        position: 'absolute',
-        top: 16,
-        right: 16,
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(15, 23, 42, 0.7)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 20,
-    },
-    editIcon: {
-        fontSize: 18,
-        color: '#f8fafc',
-    },
-
     // Desktop button controls
     cardWithButtons: {
         alignItems: 'center',
@@ -303,17 +288,6 @@ const styles = StyleSheet.create({
     },
     rejectButtonText: {
         color: '#fff',
-        fontFamily: fonts.bodyBold,
-        fontSize: 15,
-    },
-    editButton: {
-        backgroundColor: colors.borderColor,
-        paddingHorizontal: 28,
-        paddingVertical: 12,
-        borderRadius: borderRadius.md,
-    },
-    editButtonText: {
-        color: colors.textMain,
         fontFamily: fonts.bodyBold,
         fontSize: 15,
     },

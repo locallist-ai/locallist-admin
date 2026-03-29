@@ -69,7 +69,7 @@ export default function DashboardScreen() {
         params.set('limit', String(limit));
         params.set('offset', String(offset));
         if (selectedCity) params.set('city', selectedCity);
-        if (category) params.set('category', category);
+        if (category) params.set('category', category.toLowerCase());
         return `/admin/places?${params}`;
     }, [selectedCity]);
 
@@ -93,7 +93,10 @@ export default function DashboardScreen() {
                 setPlaces((prev) => [...prev, ...res.data!.places]);
             }
             setTotal(res.data.total);
-            setCounts((prev) => ({ ...prev, [status]: res.data!.total }));
+            // Only update badge counts when NOT filtering by category
+            if (!(status === 'published' && selectedCategory)) {
+                setCounts((prev) => ({ ...prev, [status]: res.data!.total }));
+            }
         } else if (res.error) {
             Alert.alert('Error', `Failed to load places: ${res.error}`);
         }
@@ -127,14 +130,10 @@ export default function DashboardScreen() {
 
     const handleCityChange = (city: string | null) => {
         setSelectedCity(city);
-        setPlaces([]);
-        setTotal(0);
     };
 
     const handleCategoryChange = (category: string | null) => {
         setSelectedCategory(category);
-        setPlaces([]);
-        setTotal(0);
     };
 
     const handleLoadMore = () => {
@@ -328,31 +327,33 @@ export default function DashboardScreen() {
 
                 {/* City filter (general) */}
                 {mode === 'places' && cities.length > 0 && (
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={[styles.filterRow, isDesktop && styles.filterRowDesktop]}
-                    >
-                        <Pressable
-                            style={[styles.filterChip, !selectedCity && styles.filterChipActive]}
-                            onPress={() => handleCityChange(null)}
+                    <View style={isDesktop && styles.filterRowDesktop}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.filterRow}
                         >
-                            <Text style={[styles.filterChipText, !selectedCity && styles.filterChipTextActive]}>
-                                All Cities
-                            </Text>
-                        </Pressable>
-                        {cities.map((city) => (
                             <Pressable
-                                key={city}
-                                style={[styles.filterChip, selectedCity === city && styles.filterChipActive]}
-                                onPress={() => handleCityChange(city)}
+                                style={[styles.filterChip, !selectedCity && styles.filterChipActive]}
+                                onPress={() => handleCityChange(null)}
                             >
-                                <Text style={[styles.filterChipText, selectedCity === city && styles.filterChipTextActive]}>
-                                    {city}
+                                <Text style={[styles.filterChipText, !selectedCity && styles.filterChipTextActive]}>
+                                    All Cities
                                 </Text>
                             </Pressable>
-                        ))}
-                    </ScrollView>
+                            {cities.map((city) => (
+                                <Pressable
+                                    key={city}
+                                    style={[styles.filterChip, selectedCity === city && styles.filterChipActive]}
+                                    onPress={() => handleCityChange(city)}
+                                >
+                                    <Text style={[styles.filterChipText, selectedCity === city && styles.filterChipTextActive]}>
+                                        {city}
+                                    </Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                    </View>
                 )}
 
                 {mode === 'places' ? (
@@ -363,7 +364,10 @@ export default function DashboardScreen() {
                                 <Pressable
                                     key={tab.key}
                                     style={[styles.tab, activeTab === tab.key && styles.tabActive]}
-                                    onPress={() => setActiveTab(tab.key)}
+                                    onPress={() => {
+                                        setActiveTab(tab.key);
+                                        if (tab.key !== 'published') setSelectedCategory(null);
+                                    }}
                                 >
                                     <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
                                         {tab.label}
@@ -379,31 +383,33 @@ export default function DashboardScreen() {
 
                         {/* Category filter (published only) */}
                         {activeTab === 'published' && (
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={[styles.filterRow, isDesktop && styles.filterRowDesktop]}
-                            >
-                                <Pressable
-                                    style={[styles.filterChip, !selectedCategory && styles.filterChipActive]}
-                                    onPress={() => handleCategoryChange(null)}
+                            <View style={isDesktop && styles.filterRowDesktop}>
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerStyle={styles.filterRow}
                                 >
-                                    <Text style={[styles.filterChipText, !selectedCategory && styles.filterChipTextActive]}>
-                                        All
-                                    </Text>
-                                </Pressable>
-                                {CATEGORIES.map((cat) => (
                                     <Pressable
-                                        key={cat}
-                                        style={[styles.filterChip, selectedCategory === cat && styles.filterChipActive]}
-                                        onPress={() => handleCategoryChange(cat)}
+                                        style={[styles.filterChip, !selectedCategory && styles.filterChipActive]}
+                                        onPress={() => handleCategoryChange(null)}
                                     >
-                                        <Text style={[styles.filterChipText, selectedCategory === cat && styles.filterChipTextActive]}>
-                                            {cat}
+                                        <Text style={[styles.filterChipText, !selectedCategory && styles.filterChipTextActive]}>
+                                            All
                                         </Text>
                                     </Pressable>
-                                ))}
-                            </ScrollView>
+                                    {CATEGORIES.map((cat) => (
+                                        <Pressable
+                                            key={cat}
+                                            style={[styles.filterChip, selectedCategory === cat && styles.filterChipActive]}
+                                            onPress={() => handleCategoryChange(selectedCategory === cat ? null : cat)}
+                                        >
+                                            <Text style={[styles.filterChipText, selectedCategory === cat && styles.filterChipTextActive]}>
+                                                {cat}
+                                            </Text>
+                                        </Pressable>
+                                    ))}
+                                </ScrollView>
+                            </View>
                         )}
 
                         {/* Places content */}

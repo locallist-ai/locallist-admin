@@ -16,7 +16,7 @@ When the user says "admin", "erp", "admin app", they mean this project (`LocalLi
 ```bash
 cd LocalList.Admin
 npm install
-npm run android -- --port 8084
+npx expo start --dev-client --port 8084
 ```
 
 ## Key Files

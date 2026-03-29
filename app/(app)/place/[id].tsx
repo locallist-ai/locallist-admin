@@ -165,6 +165,15 @@ export default function PlaceEditScreen() {
                 }}
             />
             <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+                {/* Hero image */}
+                {form.photos?.[0] ? (
+                    <Image source={{ uri: form.photos[0] }} style={styles.heroImage} resizeMode="cover" />
+                ) : (
+                    <View style={[styles.heroImage, { backgroundColor: colors.borderColor, alignItems: 'center', justifyContent: 'center' }]}>
+                        <Text style={{ color: colors.textSecondary, fontFamily: fonts.body }}>No photo</Text>
+                    </View>
+                )}
+
                 {/* Section: Identity */}
                 <Text style={styles.sectionTitle}>Identity</Text>
                 <View style={styles.section}>
@@ -411,6 +420,12 @@ const styles = StyleSheet.create({
         maxWidth: 640,
         alignSelf: 'center',
         width: '100%',
+    },
+    heroImage: {
+        width: '100%',
+        height: 240,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.md,
     },
     sectionTitle: {
         fontSize: 13,
