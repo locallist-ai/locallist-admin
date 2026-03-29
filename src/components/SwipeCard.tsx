@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import type { PlaceData } from '../types/place';
+import { colors, fonts, borderRadius } from '../lib/theme';
 
 interface SwipeCardProps {
     place: PlaceData;
@@ -88,15 +89,15 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
             {photoUrl ? (
                 <Image source={{ uri: photoUrl }} style={styles.image} resizeMode="cover" />
             ) : (
-                <View style={[styles.image, { backgroundColor: '#1e293b' }]} />
+                <View style={[styles.image, { backgroundColor: colors.borderColor }]} />
             )}
 
             {/* Swipe labels */}
             <Animated.View style={[styles.label, styles.nopeLabel, nopeStyle]}>
-                <Text style={[styles.labelText, { color: '#ef4444' }]}>NOPE</Text>
+                <Text style={[styles.labelText, { color: colors.error }]}>NOPE</Text>
             </Animated.View>
             <Animated.View style={[styles.label, styles.likeLabel, likeStyle]}>
-                <Text style={[styles.labelText, { color: '#10b981' }]}>APPROVE</Text>
+                <Text style={[styles.labelText, { color: colors.successEmerald }]}>APPROVE</Text>
             </Animated.View>
 
             {/* Edit button */}
@@ -104,7 +105,7 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
                 <Text style={styles.editIcon}>✎</Text>
             </Pressable>
 
-            {/* Info overlay */}
+            {/* Info overlay — intentionally dark over photos */}
             <View style={styles.overlay}>
                 <View style={styles.headerRow}>
                     <Text style={styles.nameText} numberOfLines={1}>
@@ -165,8 +166,8 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
 
 const styles = StyleSheet.create({
     card: {
-        borderRadius: 24,
-        backgroundColor: '#fff',
+        borderRadius: borderRadius.xl,
+        backgroundColor: colors.bgCard,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.15,
@@ -179,6 +180,7 @@ const styles = StyleSheet.create({
         height: '100%',
         position: 'absolute',
     },
+    // Overlay intentionally stays dark — standard pattern over photographs
     overlay: {
         position: 'absolute',
         bottom: 0,
@@ -186,8 +188,8 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingBottom: 24,
         backgroundColor: 'rgba(15, 23, 42, 0.85)',
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
+        borderBottomLeftRadius: borderRadius.xl,
+        borderBottomRightRadius: borderRadius.xl,
     },
     headerRow: {
         flexDirection: 'row',
@@ -197,30 +199,31 @@ const styles = StyleSheet.create({
     },
     nameText: {
         fontSize: 24,
-        fontWeight: '800',
+        fontFamily: fonts.bodyBold,
         color: '#fff',
         flex: 1,
         marginRight: 8,
     },
     priceBadge: {
         fontSize: 14,
-        fontWeight: '700',
-        color: '#f97316',
+        fontFamily: fonts.bodyBold,
+        color: colors.sunsetOrange,
         backgroundColor: 'rgba(249, 115, 22, 0.15)',
         paddingHorizontal: 8,
         paddingVertical: 2,
-        borderRadius: 6,
+        borderRadius: borderRadius.sm,
         overflow: 'hidden',
     },
     subText: {
         fontSize: 14,
         color: '#94a3b8',
-        fontWeight: '500',
+        fontFamily: fonts.bodyMedium,
         marginBottom: 8,
     },
     vibeText: {
         fontSize: 14,
         color: '#cbd5e1',
+        fontFamily: fonts.body,
         fontStyle: 'italic',
         lineHeight: 20,
         marginBottom: 8,
@@ -233,12 +236,12 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(59, 130, 246, 0.2)',
         paddingHorizontal: 10,
         paddingVertical: 4,
-        borderRadius: 12,
+        borderRadius: borderRadius.md,
     },
     tagText: {
         fontSize: 12,
         color: '#93c5fd',
-        fontWeight: '600',
+        fontFamily: fonts.bodySemiBold,
     },
     label: {
         position: 'absolute',
@@ -246,23 +249,23 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderWidth: 4,
-        borderRadius: 8,
+        borderRadius: borderRadius.sm,
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
         zIndex: 10,
     },
     labelText: {
         fontSize: 32,
-        fontWeight: '900',
+        fontFamily: fonts.bodyBold,
         letterSpacing: 2,
     },
     nopeLabel: {
         right: 40,
-        borderColor: '#ef4444',
+        borderColor: colors.error,
         transform: [{ rotate: '15deg' }],
     },
     likeLabel: {
         left: 40,
-        borderColor: '#10b981',
+        borderColor: colors.successEmerald,
         transform: [{ rotate: '-15deg' }],
     },
     editBtn: {
@@ -293,36 +296,36 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     rejectButton: {
-        backgroundColor: '#ef4444',
+        backgroundColor: colors.error,
         paddingHorizontal: 28,
         paddingVertical: 12,
-        borderRadius: 12,
+        borderRadius: borderRadius.md,
     },
     rejectButtonText: {
         color: '#fff',
-        fontWeight: '700',
+        fontFamily: fonts.bodyBold,
         fontSize: 15,
     },
     editButton: {
-        backgroundColor: '#334155',
+        backgroundColor: colors.borderColor,
         paddingHorizontal: 28,
         paddingVertical: 12,
-        borderRadius: 12,
+        borderRadius: borderRadius.md,
     },
     editButtonText: {
-        color: '#f8fafc',
-        fontWeight: '700',
+        color: colors.textMain,
+        fontFamily: fonts.bodyBold,
         fontSize: 15,
     },
     approveButton: {
-        backgroundColor: '#10b981',
+        backgroundColor: colors.successEmerald,
         paddingHorizontal: 28,
         paddingVertical: 12,
-        borderRadius: 12,
+        borderRadius: borderRadius.md,
     },
     approveButtonText: {
         color: '#fff',
-        fontWeight: '700',
+        fontFamily: fonts.bodyBold,
         fontSize: 15,
     },
 });

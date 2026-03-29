@@ -9,6 +9,7 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
+import { colors, fonts, spacing, borderRadius } from '../lib/theme';
 
 interface RejectionModalProps {
     visible: boolean;
@@ -47,7 +48,7 @@ export default function RejectionModal({ visible, placeName, onConfirm, onCancel
                     <TextInput
                         style={styles.input}
                         placeholder="Reason for rejection..."
-                        placeholderTextColor="#64748b"
+                        placeholderTextColor={colors.textSecondary}
                         value={reason}
                         onChangeText={setReason}
                         multiline
@@ -77,67 +78,74 @@ export default function RejectionModal({ visible, placeName, onConfirm, onCancel
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 24,
+        padding: spacing.lg,
     },
     card: {
-        backgroundColor: '#1e293b',
-        borderRadius: 16,
-        padding: 24,
+        backgroundColor: colors.bgCard,
+        borderRadius: borderRadius.lg,
+        padding: spacing.lg,
         width: '100%',
         maxWidth: 400,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
     },
     title: {
         fontSize: 20,
-        fontWeight: '700',
-        color: '#f8fafc',
-        marginBottom: 4,
+        fontFamily: fonts.bodySemiBold,
+        color: colors.textMain,
+        marginBottom: spacing.xs,
     },
     subtitle: {
         fontSize: 14,
-        color: '#94a3b8',
-        marginBottom: 16,
+        fontFamily: fonts.body,
+        color: colors.textSecondary,
+        marginBottom: spacing.md,
     },
     input: {
-        backgroundColor: '#0f172a',
+        backgroundColor: colors.bgMain,
         borderRadius: 10,
         padding: 14,
-        color: '#f8fafc',
+        color: colors.textMain,
+        fontFamily: fonts.body,
         fontSize: 15,
         minHeight: 80,
         borderWidth: 1,
-        borderColor: '#334155',
+        borderColor: colors.borderColor,
     },
     actions: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        gap: 12,
-        marginTop: 16,
+        gap: spacing.md,
+        marginTop: spacing.md,
     },
     cancelBtn: {
         paddingHorizontal: 20,
         paddingVertical: 10,
-        borderRadius: 8,
+        borderRadius: borderRadius.sm,
     },
     cancelText: {
-        color: '#94a3b8',
-        fontWeight: '600',
+        color: colors.textSecondary,
+        fontFamily: fonts.bodySemiBold,
         fontSize: 15,
     },
     rejectBtn: {
-        backgroundColor: '#ef4444',
+        backgroundColor: colors.error,
         paddingHorizontal: 20,
         paddingVertical: 10,
-        borderRadius: 8,
+        borderRadius: borderRadius.sm,
     },
     disabledBtn: {
         opacity: 0.4,
     },
     rejectText: {
         color: '#fff',
-        fontWeight: '700',
+        fontFamily: fonts.bodyBold,
         fontSize: 15,
     },
 });

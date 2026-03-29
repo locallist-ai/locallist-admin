@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform, Image } from 'react-native';
 import { useState, useEffect } from 'react';
 import {
     signInWithCredential,
@@ -6,6 +6,7 @@ import {
     GoogleAuthProvider,
 } from 'firebase/auth';
 import { auth } from '../../src/lib/firebase';
+import { colors, fonts, spacing, borderRadius } from '../../src/lib/theme';
 
 // Google Sign-In native SDK (mobile only)
 let GoogleSignin: any = null;
@@ -75,7 +76,12 @@ export default function LoginScreen() {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>LocalList Admin</Text>
+            <Image
+                source={require('../../assets/images/icon-text.png')}
+                style={styles.logo}
+                resizeMode="contain"
+            />
+            <Text style={styles.title}>Admin</Text>
             <Text style={styles.subtitle}>Curator Dashboard</Text>
 
             {error && <Text style={styles.error}>{error}</Text>}
@@ -100,25 +106,31 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#0f172a',
-        padding: 24,
+        backgroundColor: colors.bgMain,
+        padding: spacing.lg,
+    },
+    logo: {
+        width: 200,
+        height: 60,
+        marginBottom: spacing.lg,
     },
     title: {
         fontSize: 32,
-        fontWeight: '800',
-        color: '#fff',
-        marginBottom: 8,
+        fontFamily: fonts.headingBold,
+        color: colors.deepOcean,
+        marginBottom: spacing.sm,
     },
     subtitle: {
         fontSize: 18,
-        color: '#94a3b8',
-        marginBottom: 48,
+        fontFamily: fonts.body,
+        color: colors.textSecondary,
+        marginBottom: spacing.xxl,
     },
     button: {
-        backgroundColor: '#3b82f6',
-        paddingHorizontal: 24,
+        backgroundColor: colors.electricBlue,
+        paddingHorizontal: spacing.lg,
         paddingVertical: 14,
-        borderRadius: 8,
+        borderRadius: borderRadius.sm,
         width: '100%',
         alignItems: 'center',
         justifyContent: 'center',
@@ -127,11 +139,12 @@ const styles = StyleSheet.create({
     buttonText: {
         color: '#fff',
         fontSize: 16,
-        fontWeight: '600',
+        fontFamily: fonts.bodySemiBold,
     },
     error: {
-        color: '#ef4444',
-        marginBottom: 16,
+        color: colors.error,
+        fontFamily: fonts.body,
+        marginBottom: spacing.md,
         textAlign: 'center',
     },
 });

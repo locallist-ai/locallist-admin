@@ -18,6 +18,7 @@ import RejectionModal from '../../src/components/RejectionModal';
 import type { PlaceData, PlacesResponse } from '../../src/types/place';
 import type { PlanData, PlansResponse } from '../../src/types/plan';
 import { colors, fonts, spacing, borderRadius } from '../../src/lib/theme';
+import { CATEGORIES } from '../../src/lib/constants';
 
 type Mode = 'places' | 'plans';
 type StatusTab = 'in_review' | 'published' | 'rejected';
@@ -38,6 +39,11 @@ export default function DashboardScreen() {
     // Mode toggle
     const [mode, setMode] = useState<Mode>('places');
 
+    // Filter state
+    const [selectedCity, setSelectedCity] = useState<string | null>(null);
+    const [cities, setCities] = useState<string[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
     // Places state
     const [activeTab, setActiveTab] = useState<StatusTab>('in_review');
     const [places, setPlaces] = useState<PlaceData[]>([]);
@@ -57,6 +63,16 @@ export default function DashboardScreen() {
 
     // ─── Places logic ───
 
+    const buildPlacesQuery = useCallback((status: StatusTab, limit: number, offset: number, category?: string | null) => {
+        const params = new URLSearchParams();
+        params.set('status', status);
+        params.set('limit', String(limit));
+        params.set('offset', String(offset));
+        if (selectedCity) params.set('city', selectedCity);
+        if (category) params.set('category', category);
+        return `/admin/places?${params}`;
+    }, [selectedCity]);
+
     const loadPlaces = useCallback(async (status: StatusTab, offset = 0) => {
         const isInitial = offset === 0;
         if (isInitial) setLoading(true);
@@ -65,9 +81,8 @@ export default function DashboardScreen() {
         const reqId = ++requestIdRef.current;
 
         const limit = status === 'in_review' ? 10 : PAGE_SIZE;
-        const res = await api<PlacesResponse>(
-            `/admin/places?status=${status}&limit=${limit}&offset=${offset}`
-        );
+        const cat = status === 'published' ? selectedCategory : null;
+        const res = await api<PlacesResponse>(buildPlacesQuery(status, limit, offset, cat));
 
         if (reqId !== requestIdRef.current) return;
 
@@ -85,22 +100,42 @@ export default function DashboardScreen() {
 
         if (isInitial) setLoading(false);
         else setLoadingMore(false);
+    }, [buildPlacesQuery, selectedCategory]);
+
+    // Fetch available cities
+    useEffect(() => {
+        api<{ cities: string[] }>('/admin/places/cities').then((res) => {
+            if (res.data) setCities(res.data.cities);
+        });
     }, []);
 
+    // Fetch counts (respects city filter)
     useEffect(() => {
         Promise.all(
             TABS.map(async (tab) => {
-                const res = await api<PlacesResponse>(`/admin/places?status=${tab.key}&limit=1`);
+                const res = await api<PlacesResponse>(buildPlacesQuery(tab.key, 1, 0));
                 if (res.data) {
                     setCounts((prev) => ({ ...prev, [tab.key]: res.data!.total }));
                 }
             })
         );
-    }, []);
+    }, [buildPlacesQuery]);
 
     useEffect(() => {
         if (mode === 'places') loadPlaces(activeTab);
     }, [activeTab, loadPlaces, mode]);
+
+    const handleCityChange = (city: string | null) => {
+        setSelectedCity(city);
+        setPlaces([]);
+        setTotal(0);
+    };
+
+    const handleCategoryChange = (category: string | null) => {
+        setSelectedCategory(category);
+        setPlaces([]);
+        setTotal(0);
+    };
 
     const handleLoadMore = () => {
         if (loadingMore || places.length >= total) return;
@@ -291,6 +326,35 @@ export default function DashboardScreen() {
                     </Pressable>
                 </View>
 
+                {/* City filter (general) */}
+                {mode === 'places' && cities.length > 0 && (
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={[styles.filterRow, isDesktop && styles.filterRowDesktop]}
+                    >
+                        <Pressable
+                            style={[styles.filterChip, !selectedCity && styles.filterChipActive]}
+                            onPress={() => handleCityChange(null)}
+                        >
+                            <Text style={[styles.filterChipText, !selectedCity && styles.filterChipTextActive]}>
+                                All Cities
+                            </Text>
+                        </Pressable>
+                        {cities.map((city) => (
+                            <Pressable
+                                key={city}
+                                style={[styles.filterChip, selectedCity === city && styles.filterChipActive]}
+                                onPress={() => handleCityChange(city)}
+                            >
+                                <Text style={[styles.filterChipText, selectedCity === city && styles.filterChipTextActive]}>
+                                    {city}
+                                </Text>
+                            </Pressable>
+                        ))}
+                    </ScrollView>
+                )}
+
                 {mode === 'places' ? (
                     <>
                         {/* Status tabs */}
@@ -312,6 +376,35 @@ export default function DashboardScreen() {
                                 </Pressable>
                             ))}
                         </View>
+
+                        {/* Category filter (published only) */}
+                        {activeTab === 'published' && (
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={[styles.filterRow, isDesktop && styles.filterRowDesktop]}
+                            >
+                                <Pressable
+                                    style={[styles.filterChip, !selectedCategory && styles.filterChipActive]}
+                                    onPress={() => handleCategoryChange(null)}
+                                >
+                                    <Text style={[styles.filterChipText, !selectedCategory && styles.filterChipTextActive]}>
+                                        All
+                                    </Text>
+                                </Pressable>
+                                {CATEGORIES.map((cat) => (
+                                    <Pressable
+                                        key={cat}
+                                        style={[styles.filterChip, selectedCategory === cat && styles.filterChipActive]}
+                                        onPress={() => handleCategoryChange(cat)}
+                                    >
+                                        <Text style={[styles.filterChipText, selectedCategory === cat && styles.filterChipTextActive]}>
+                                            {cat}
+                                        </Text>
+                                    </Pressable>
+                                ))}
+                            </ScrollView>
+                        )}
 
                         {/* Places content */}
                         {loading ? (
@@ -450,6 +543,24 @@ const styles = StyleSheet.create({
     segmentActive: { borderBottomColor: colors.electricBlue },
     segmentText: { fontSize: 15, fontFamily: fonts.bodySemiBold, color: colors.textSecondary },
     segmentTextActive: { color: colors.electricBlue },
+
+    // Filter chips (city & category)
+    filterRow: {
+        paddingHorizontal: 20, gap: spacing.xs, marginBottom: spacing.md,
+    },
+    filterRowDesktop: { maxWidth: 960, alignSelf: 'center', width: '100%' },
+    filterChip: {
+        paddingHorizontal: 14, paddingVertical: 6,
+        borderRadius: 16, borderWidth: 1, borderColor: colors.borderColor,
+        backgroundColor: colors.bgCard,
+    },
+    filterChipActive: {
+        backgroundColor: colors.deepOcean, borderColor: colors.deepOcean,
+    },
+    filterChipText: {
+        fontSize: 13, fontFamily: fonts.bodySemiBold, color: colors.textSecondary,
+    },
+    filterChipTextActive: { color: '#fff' },
 
     // Tabs
     tabsRow: {
