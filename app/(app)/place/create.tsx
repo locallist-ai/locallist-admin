@@ -14,11 +14,7 @@ import { useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import type { PlaceData } from '../../../src/types/place';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
-
-const CATEGORIES = ['Food', 'Nightlife', 'Coffee', 'Outdoors', 'Wellness', 'Culture'] as const;
-const PRICE_RANGES = ['$', '$$', '$$$', '$$$$'] as const;
-const BEST_TIMES = ['morning', 'lunch', 'afternoon', 'dinner', 'late_night'] as const;
-const STATUSES = ['published', 'in_review', 'draft'] as const;
+import { CATEGORIES, PRICE_RANGES, BEST_TIMES, STATUSES } from '../../../src/lib/constants';
 
 export default function PlaceCreateScreen() {
     const router = useRouter();
