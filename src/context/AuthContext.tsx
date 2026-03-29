@@ -1,18 +1,19 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { getAccessToken, setTokens as apiSetTokens, clearTokens as apiClearTokens } from '../lib/api';
+import { onAuthStateChanged, signOut as firebaseSignOut, User } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 interface AuthState {
+    user: User | null;
     token: string | null;
     isLoading: boolean;
-    signIn: (token: string) => Promise<void>;
     signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState>({
+    user: null,
     token: null,
     isLoading: true,
-    signIn: async () => { },
-    signOut: async () => { },
+    signOut: async () => {},
 });
 
 export function useAuth() {
@@ -20,30 +21,53 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+    const [user, setUser] = useState<User | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check for existing token on mount
-        getAccessToken().then(storedToken => {
-            setToken(storedToken);
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                const idToken = await firebaseUser.getIdToken();
+                setUser(firebaseUser);
+                setToken(idToken);
+
+                // Sync user with backend DB (fire and forget)
+                syncUserWithBackend(idToken);
+            } else {
+                setUser(null);
+                setToken(null);
+            }
             setIsLoading(false);
         });
+
+        return unsubscribe;
     }, []);
 
-    const signIn = async (newToken: string) => {
-        await apiSetTokens(newToken);
-        setToken(newToken);
-    };
-
     const signOut = async () => {
-        await apiClearTokens();
-        setToken(null);
+        await firebaseSignOut(auth);
     };
 
     return (
-        <AuthContext.Provider value={{ token, isLoading, signIn, signOut }}>
+        <AuthContext.Provider value={{ user, token, isLoading, signOut }}>
             {children}
         </AuthContext.Provider>
     );
+}
+
+async function syncUserWithBackend(idToken: string) {
+    try {
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL
+            || 'https://locallist-api-net-production.up.railway.app';
+
+        await fetch(`${apiUrl}/auth/sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`,
+            },
+        });
+    } catch {
+        // Non-critical — user sync can fail silently on first load
+    }
 }
