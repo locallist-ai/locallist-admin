@@ -1,22 +1,31 @@
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { useAuth } from '../../src/context/AuthContext';
-import { api } from '../../src/lib/api';
+import {
+    signInWithCredential,
+    signInWithPopup,
+    GoogleAuthProvider,
+} from 'firebase/auth';
+import { auth } from '../../src/lib/firebase';
+
+// Google Sign-In native SDK (mobile only)
+let GoogleSignin: any = null;
+if (Platform.OS !== 'web') {
+    GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+}
 
 export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const { signIn } = useAuth();
 
     useEffect(() => {
-        // Initialize Google Sign-In
-        GoogleSignin.configure({
-            // We will need WebClientId and iOSClientId from GCP Console later
-            scopes: ['email', 'profile'],
-            webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'PLACEHOLDER',
-            iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'PLACEHOLDER',
-        });
+        // Configure native Google Sign-In on mobile
+        if (GoogleSignin) {
+            GoogleSignin.configure({
+                scopes: ['email', 'profile'],
+                webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
+                iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '',
+            });
+        }
     }, []);
 
     const handleGoogleLogin = async () => {
@@ -24,66 +33,41 @@ export default function LoginScreen() {
             setLoading(true);
             setError(null);
 
-            await GoogleSignin.hasPlayServices();
-            const userInfo = await GoogleSignin.signIn();
-            const idToken = userInfo.data?.idToken;
-            const userEmail = userInfo.data?.user.email;
+            if (Platform.OS === 'web') {
+                // Web: Firebase popup flow
+                const provider = new GoogleAuthProvider();
+                provider.setCustomParameters({ hd: 'locallist.ai' });
+                const result = await signInWithPopup(auth, provider);
 
-            if (!idToken) throw new Error('No ID token obtained from Google');
+                // Client-side domain check (UX only — backend enforces via AdminAuthorizationFilter)
+                if (!result.user.email?.endsWith('@locallist.ai')) {
+                    await auth.signOut();
+                    throw new Error('Please sign in with a @locallist.ai account.');
+                }
+            } else {
+                // Mobile: Google Sign-In SDK → Firebase credential
+                await GoogleSignin.hasPlayServices();
+                const userInfo = await GoogleSignin.signIn();
+                const idToken = userInfo.data?.idToken;
 
-            // Strict Workspace domain restriction
-            if (!userEmail?.endsWith('@locallist.ai') && userEmail !== 'pablo@locallist.ai') {
-                await GoogleSignin.signOut();
-                throw new Error('Unauthorized Access. Please login with a @locallist.ai Workspace account.');
+                if (!idToken) throw new Error('No ID token obtained from Google');
+
+                // Client-side domain check (UX only)
+                const email = userInfo.data?.user.email;
+                if (!email?.endsWith('@locallist.ai')) {
+                    await GoogleSignin.signOut();
+                    throw new Error('Please sign in with a @locallist.ai account.');
+                }
+
+                // Convert Google credential to Firebase auth
+                const credential = GoogleAuthProvider.credential(idToken);
+                await signInWithCredential(auth, credential);
             }
 
-            // Exchange with existing .NET API backend endpoint
-            const res = await api<any>('/auth/signin', {
-                method: 'POST',
-                body: { provider: 'google', idToken: idToken }
-            });
-
-            if (res.error || !res.data) {
-                throw new Error(res.error || 'Authentication failed on server');
-            }
-
-            // Store JWT tokens securely and trigger App redirect
-            await signIn(res.data.accessToken);
-
-        } catch (err: any) {
-            setError(err.message || 'Login failed');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleDevLogin = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            // First attempt to login with a known hardcoded dev password
-            let res = await api<any>('/auth/login', {
-                method: 'POST',
-                body: { email: 'pablo@locallist.ai', password: 'Password123!' }
-            });
-
-            // If it fails, maybe the user doesn't exist, try to register
-            if (res.error) {
-                res = await api<any>('/auth/register', {
-                    method: 'POST',
-                    body: { email: 'pablo@locallist.ai', password: 'Password123!', name: 'Dev Admin' }
-                });
-            }
-
-            if (res.error || !res.data) {
-                throw new Error(res.error || 'Dev Authentication failed on server');
-            }
-
-            await signIn(res.data.accessToken);
-
-        } catch (err: any) {
-            setError(err.message || 'Dev Login failed');
+            // AuthContext's onAuthStateChanged listener handles the rest
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Login failed';
+            setError(message);
         } finally {
             setLoading(false);
         }
@@ -104,17 +88,8 @@ export default function LoginScreen() {
                 {loading ? (
                     <ActivityIndicator color="#fff" />
                 ) : (
-                    <Text style={styles.buttonText}>Sign in with Google Workspace</Text>
+                    <Text style={styles.buttonText}>Sign in with Google</Text>
                 )}
-            </Pressable>
-
-            {/* DEV ONLY BYPASS */}
-            <Pressable
-                style={[styles.button, { marginTop: 16, backgroundColor: '#475569' }]}
-                onPress={handleDevLogin}
-                disabled={loading}
-            >
-                <Text style={styles.buttonText}>[DEV] Sign in without Google</Text>
             </Pressable>
         </View>
     );
@@ -158,5 +133,5 @@ const styles = StyleSheet.create({
         color: '#ef4444',
         marginBottom: 16,
         textAlign: 'center',
-    }
+    },
 });
