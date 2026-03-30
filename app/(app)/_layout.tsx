@@ -1,16 +1,12 @@
 import { Stack } from 'expo-router';
-
-const colors = {
-    deepOcean: '#0f172a',
-    paperWhite: '#F2EFE9',
-};
+import { colors } from '../../src/lib/theme';
 
 export default function AppLayout() {
     return (
         <Stack
             screenOptions={{
-                headerStyle: { backgroundColor: colors.deepOcean },
-                headerTintColor: colors.paperWhite,
+                headerStyle: { backgroundColor: colors.bgMain },
+                headerTintColor: colors.deepOcean,
             }}
         >
             <Stack.Screen
@@ -24,6 +20,24 @@ export default function AppLayout() {
                 name="place/[id]"
                 options={{
                     title: 'Edit Place',
+                }}
+            />
+            <Stack.Screen
+                name="place/create"
+                options={{
+                    title: 'Create Place',
+                }}
+            />
+            <Stack.Screen
+                name="plans/create"
+                options={{
+                    title: 'Create Plan',
+                }}
+            />
+            <Stack.Screen
+                name="plans/[id]"
+                options={{
+                    title: 'Edit Plan',
                 }}
             />
         </Stack>
