@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "LocalList.Admin",
-    "slug": "LocalList.Admin",
+    "slug": "LocalListAdmin",
     "version": "1.0.0",
     "main": "expo-router/entry",
     "scheme": "locallistadmin",
@@ -15,7 +15,8 @@
       "backgroundColor": "#F2EFE9"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.locallist.admin"
     },
     "android": {
       "adaptiveIcon": {
@@ -34,6 +35,13 @@
       "expo-router",
       "@react-native-google-signin/google-signin",
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "46aff2c4-1eaa-4a36-92eb-237da3456bc0"
+      }
+    },
+    "owner": "pablolocallist"
   }
 }
