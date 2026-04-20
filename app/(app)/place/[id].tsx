@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import type { PlaceData } from '../../../src/types/place';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
+import { getDirtyFields as computeDirtyFields } from '../../../src/utils/getDirtyFields';
 
 const CATEGORIES = ['Food', 'Nightlife', 'Coffee', 'Outdoors', 'Wellness', 'Culture'] as const;
 const PRICE_RANGES = ['$', '$$', '$$$', '$$$$'] as const;
@@ -59,29 +60,7 @@ export default function PlaceEditScreen() {
     const getDirtyFields = (): Record<string, unknown> => {
         const original = originalRef.current;
         if (!original) return {};
-
-        const dirty: Record<string, unknown> = {};
-        const editableKeys: (keyof PlaceData)[] = [
-            'name', 'category', 'subcategory', 'whyThisPlace',
-            'neighborhood', 'city', 'latitude', 'longitude',
-            'bestFor', 'suitableFor', 'bestTime', 'priceRange',
-            'photos', 'googlePlaceId', 'source', 'sourceUrl',
-        ];
-
-        for (const key of editableKeys) {
-            const formVal = form[key];
-            const origVal = original[key];
-
-            if (Array.isArray(formVal) && Array.isArray(origVal)) {
-                if (JSON.stringify(formVal) !== JSON.stringify(origVal)) {
-                    dirty[key] = formVal;
-                }
-            } else if (formVal !== origVal) {
-                dirty[key] = formVal;
-            }
-        }
-
-        return dirty;
+        return computeDirtyFields(original, form);
     };
 
     const handleSave = async () => {
