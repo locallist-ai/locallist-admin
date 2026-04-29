@@ -57,8 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 async function syncUserWithBackend(idToken: string) {
     try {
-        const apiUrl = process.env.EXPO_PUBLIC_API_URL
-            || 'https://locallist-api-net-production.up.railway.app';
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? '';
 
         await fetch(`${apiUrl}/auth/sync`, {
             method: 'POST',

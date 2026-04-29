@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
-// @ts-ignore — getReactNativePersistence is exported from the react-native subpath
+// @ts-ignore — getReactNativePersistence types live under a subpath not resolved by tsc
 import { getReactNativePersistence, initializeAuth } from 'firebase/auth';
 import { Platform } from 'react-native';
 

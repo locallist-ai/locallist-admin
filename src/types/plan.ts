@@ -24,6 +24,8 @@ export interface PlanData {
     durationDays: number;
     isPublic: boolean;
     isShowcase: boolean;
+    source?: string;
+    tripContext?: Record<string, unknown> | null;
     createdById?: string;
     createdAt?: string;
     updatedAt?: string;
