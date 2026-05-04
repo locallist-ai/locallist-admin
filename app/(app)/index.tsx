@@ -339,14 +339,11 @@ export default function DashboardScreen() {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {/* Header */}
                 <View style={[styles.header, isDesktop && styles.headerDesktop]}>
-                    <View style={styles.headerLeft}>
-                        <Image
-                            source={require('../../assets/images/icon-text.png')}
-                            style={styles.headerLogo}
-                            resizeMode="contain"
-                        />
-                        <Text style={styles.title}>Admin</Text>
-                    </View>
+                    <Image
+                        source={require('../../assets/images/icon-text.png')}
+                        style={styles.headerLogo}
+                        resizeMode="contain"
+                    />
                     <View style={styles.headerRight}>
                         <Pressable
                             style={styles.createBtn}
@@ -606,9 +603,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     },
     headerDesktop: { paddingTop: spacing.lg, maxWidth: 960, alignSelf: 'center', width: '100%' },
-    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    headerLogo: { width: 120, height: 36 },
-    title: { fontSize: 20, fontFamily: fonts.bodySemiBold, color: colors.textSecondary },
+    headerLogo: { width: 140, height: 40 },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
     createBtn: {
         backgroundColor: colors.electricBlue, paddingHorizontal: spacing.md,

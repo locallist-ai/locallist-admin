@@ -75,27 +75,29 @@ export default function LoginScreen() {
 
     return (
         <View style={styles.container}>
-            <Image
-                source={require('../../assets/images/icon-text.png')}
-                style={styles.logo}
-                resizeMode="contain"
-            />
-            <Text style={styles.title}>Admin</Text>
-            <Text style={styles.subtitle}>Curator Dashboard</Text>
+            <View style={styles.card}>
+                <Image
+                    source={require('../../assets/images/icon-text.png')}
+                    style={styles.logo}
+                    resizeMode="contain"
+                />
+                <Text style={styles.title}>Curator Dashboard</Text>
+                <Text style={styles.subtitle}>Internal tool — @locallist.ai only</Text>
 
-            {error && <Text style={styles.error}>{error}</Text>}
+                {error && <Text style={styles.error}>{error}</Text>}
 
-            <Pressable
-                style={styles.button}
-                onPress={handleGoogleLogin}
-                disabled={loading}
-            >
-                {loading ? (
-                    <ActivityIndicator color="#fff" />
-                ) : (
-                    <Text style={styles.buttonText}>Sign in with Google</Text>
-                )}
-            </Pressable>
+                <Pressable
+                    style={styles.button}
+                    onPress={handleGoogleLogin}
+                    disabled={loading}
+                >
+                    {loading ? (
+                        <ActivityIndicator color="#fff" />
+                    ) : (
+                        <Text style={styles.buttonText}>Sign in with Google</Text>
+                    )}
+                </Pressable>
+            </View>
         </View>
     );
 }
@@ -108,28 +110,43 @@ const styles = StyleSheet.create({
         backgroundColor: colors.bgMain,
         padding: spacing.lg,
     },
+    card: {
+        width: '100%',
+        maxWidth: 400,
+        backgroundColor: colors.bgCard,
+        borderRadius: borderRadius.xl,
+        padding: spacing.xl,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        elevation: 4,
+    },
     logo: {
-        width: 200,
-        height: 60,
-        marginBottom: spacing.lg,
+        width: 180,
+        height: 52,
+        marginBottom: spacing.xl,
     },
     title: {
-        fontSize: 32,
+        fontSize: 22,
         fontFamily: fonts.headingBold,
         color: colors.deepOcean,
-        marginBottom: spacing.sm,
+        marginBottom: spacing.xs,
+        textAlign: 'center',
     },
     subtitle: {
-        fontSize: 18,
+        fontSize: 14,
         fontFamily: fonts.body,
         color: colors.textSecondary,
-        marginBottom: spacing.xxl,
+        marginBottom: spacing.xl,
+        textAlign: 'center',
     },
     button: {
         backgroundColor: colors.electricBlue,
         paddingHorizontal: spacing.lg,
         paddingVertical: 14,
-        borderRadius: borderRadius.sm,
+        borderRadius: borderRadius.md,
         width: '100%',
         alignItems: 'center',
         justifyContent: 'center',
@@ -143,7 +160,9 @@ const styles = StyleSheet.create({
     error: {
         color: colors.error,
         fontFamily: fonts.body,
+        fontSize: 13,
         marginBottom: spacing.md,
         textAlign: 'center',
+        lineHeight: 20,
     },
 });

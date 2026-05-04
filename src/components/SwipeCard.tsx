@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     },
     nameText: {
         fontSize: 24,
-        fontFamily: fonts.bodyBold,
+        fontFamily: fonts.headingBold,
         color: '#fff',
         flex: 1,
         marginRight: 8,
