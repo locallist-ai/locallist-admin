@@ -30,6 +30,10 @@ export interface PlanData {
     createdAt?: string;
     updatedAt?: string;
     days?: PlanDayData[];
+    // i18n ES fields (curated plans only)
+    nameEs?: string | null;
+    descriptionEs?: string | null;
+    translationStatusEs?: string | null;
 }
 
 export interface PlansResponse {

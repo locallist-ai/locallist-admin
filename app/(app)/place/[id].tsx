@@ -9,10 +9,11 @@ import {
     ActivityIndicator,
     Alert,
     Image,
+    Switch,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
-import type { PlaceData } from '../../../src/types/place';
+import type { PlaceData, PlaceTranslateDraft } from '../../../src/types/place';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 import { getDirtyFields as computeDirtyFields } from '../../../src/utils/getDirtyFields';
 
@@ -31,6 +32,9 @@ export default function PlaceEditScreen() {
     // Editable form state
     const [form, setForm] = useState<Partial<PlaceData>>({});
     const originalRef = useRef<PlaceData | null>(null);
+
+    // Translation state
+    const [translating, setTranslating] = useState(false);
 
     // New tag / photo inputs
     const [newTag, setNewTag] = useState('');
@@ -114,6 +118,30 @@ export default function PlaceEditScreen() {
 
     const removePhoto = (url: string) => {
         updateField('photos', (form.photos ?? []).filter((p) => p !== url));
+    };
+
+    const handleSuggestTranslation = async () => {
+        if (place?.source !== 'curated') {
+            Alert.alert('Not curated', 'Translation is only available for curated places.');
+            return;
+        }
+        setTranslating(true);
+        const res = await api<PlaceTranslateDraft>(`/admin/places/${id}/translate`, { method: 'POST' });
+        setTranslating(false);
+        if (res.data) {
+            setForm(prev => ({
+                ...prev,
+                nameEs: res.data!.nameEs ?? prev.nameEs,
+                whyThisPlaceEs: res.data!.whyThisPlaceEs ?? prev.whyThisPlaceEs,
+                bestTimeEs: res.data!.bestTimeEs ?? prev.bestTimeEs,
+                neighborhoodEs: res.data!.neighborhoodEs ?? prev.neighborhoodEs,
+                subcategoryEs: res.data!.subcategoryEs ?? prev.subcategoryEs,
+                bestForEs: res.data!.bestForEs ?? prev.bestForEs,
+                suitableForEs: res.data!.suitableForEs ?? prev.suitableForEs,
+            }));
+        } else {
+            Alert.alert('Error', `Translation failed: ${res.error}`);
+        }
     };
 
     if (loading) {
@@ -336,6 +364,98 @@ export default function PlaceEditScreen() {
                         </Pressable>
                     </View>
                 </View>
+
+                {/* Section: Translations (ES) — curated only */}
+                {place?.source === 'curated' && (
+                    <>
+                        <Text style={styles.sectionTitle}>Translation ES</Text>
+                        <View style={styles.section}>
+                            <Pressable
+                                style={[styles.translateBtn, translating && styles.saveBtnDisabled]}
+                                onPress={handleSuggestTranslation}
+                                disabled={translating}
+                            >
+                                {translating
+                                    ? <ActivityIndicator color="#fff" size="small" />
+                                    : <Text style={styles.translateBtnText}>Suggest ES Translation (Gemini)</Text>
+                                }
+                            </Pressable>
+
+                            <View style={styles.toggleRow}>
+                                <Text style={styles.toggleLabel}>Approved ES</Text>
+                                <Switch
+                                    value={form.translationStatusEs === 'approved'}
+                                    onValueChange={(v) => updateField('translationStatusEs', v ? 'approved' : 'draft')}
+                                    trackColor={{ false: colors.borderColor, true: colors.successEmerald }}
+                                />
+                            </View>
+
+                            <FieldLabel label="Name (ES)" />
+                            <TextInput
+                                style={styles.input}
+                                value={form.nameEs ?? ''}
+                                onChangeText={(v) => updateField('nameEs', v || null)}
+                                placeholder={form.name}
+                                placeholderTextColor={colors.textSecondary}
+                            />
+
+                            <FieldLabel label="Why This Place (ES)" />
+                            <TextInput
+                                style={[styles.input, styles.multilineInput]}
+                                value={form.whyThisPlaceEs ?? ''}
+                                onChangeText={(v) => updateField('whyThisPlaceEs', v || null)}
+                                placeholder={form.whyThisPlace ?? ''}
+                                placeholderTextColor={colors.textSecondary}
+                                multiline numberOfLines={3} textAlignVertical="top"
+                            />
+
+                            <FieldLabel label="Best Time (ES)" />
+                            <TextInput
+                                style={styles.input}
+                                value={form.bestTimeEs ?? ''}
+                                onChangeText={(v) => updateField('bestTimeEs', v || null)}
+                                placeholder={form.bestTime ?? ''}
+                                placeholderTextColor={colors.textSecondary}
+                            />
+
+                            <FieldLabel label="Neighborhood (ES)" />
+                            <TextInput
+                                style={styles.input}
+                                value={form.neighborhoodEs ?? ''}
+                                onChangeText={(v) => updateField('neighborhoodEs', v || null)}
+                                placeholder={form.neighborhood ?? ''}
+                                placeholderTextColor={colors.textSecondary}
+                            />
+
+                            <FieldLabel label="Subcategory (ES)" />
+                            <TextInput
+                                style={styles.input}
+                                value={form.subcategoryEs ?? ''}
+                                onChangeText={(v) => updateField('subcategoryEs', v || null)}
+                                placeholder={form.subcategory ?? ''}
+                                placeholderTextColor={colors.textSecondary}
+                            />
+
+                            <FieldLabel label="Best For (ES) — comma separated" />
+                            <TextInput
+                                style={styles.input}
+                                value={form.bestForEs?.join(', ') ?? ''}
+                                onChangeText={(v) => updateField('bestForEs', v ? v.split(',').map(s => s.trim()).filter(Boolean) : null)}
+                                placeholder={(form.bestFor ?? []).join(', ')}
+                                placeholderTextColor={colors.textSecondary}
+                            />
+
+                            <FieldLabel label="Suitable For (ES) — comma separated" />
+                            <TextInput
+                                style={styles.input}
+                                value={form.suitableForEs?.join(', ') ?? ''}
+                                onChangeText={(v) => updateField('suitableForEs', v ? v.split(',').map(s => s.trim()).filter(Boolean) : null)}
+                                placeholder={(form.suitableFor ?? []).join(', ')}
+                                placeholderTextColor={colors.textSecondary}
+                            />
+                        </View>
+                    </>
+                )}
 
                 {/* Section: Metadata (read-only) */}
                 <Text style={styles.sectionTitle}>Metadata</Text>
@@ -560,5 +680,29 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontFamily: fonts.bodyBold,
+    },
+    translateBtn: {
+        backgroundColor: colors.electricBlue,
+        borderRadius: borderRadius.md,
+        paddingVertical: spacing.md,
+        alignItems: 'center',
+        marginBottom: spacing.md,
+    },
+    translateBtnText: {
+        color: '#fff',
+        fontSize: 15,
+        fontFamily: fonts.bodySemiBold,
+    },
+    toggleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: spacing.sm,
+        marginBottom: spacing.sm,
+    },
+    toggleLabel: {
+        fontSize: 15,
+        fontFamily: fonts.bodySemiBold,
+        color: colors.textMain,
     },
 });

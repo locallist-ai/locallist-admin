@@ -25,6 +25,26 @@ export interface PlaceData {
     flags?: string[];
     createdAt?: string;
     updatedAt?: string;
+    // i18n ES fields (curated places only)
+    nameEs?: string | null;
+    whyThisPlaceEs?: string | null;
+    bestTimeEs?: string | null;
+    neighborhoodEs?: string | null;
+    subcategoryEs?: string | null;
+    bestForEs?: string[] | null;
+    suitableForEs?: string[] | null;
+    translationStatusEs?: string | null;
+}
+
+/** Draft returned by POST /admin/places/{id}/translate */
+export interface PlaceTranslateDraft {
+    nameEs: string | null;
+    whyThisPlaceEs: string | null;
+    bestTimeEs: string | null;
+    neighborhoodEs: string | null;
+    subcategoryEs: string | null;
+    bestForEs: string[] | null;
+    suitableForEs: string[] | null;
 }
 
 /** Response from GET /admin/places */
