@@ -43,8 +43,11 @@ export default function PlanEditScreen() {
     const [form, setForm] = useState({
         name: '', city: '', type: 'custom', description: '', imageUrl: '',
         durationDays: 1, isPublic: true, isShowcase: false,
+        nameEs: '' as string | null, descriptionEs: '' as string | null,
+        translationStatusEs: null as string | null,
     });
     const originalFormRef = useRef(form);
+    const [translating, setTranslating] = useState(false);
 
     // Stops
     const [stops, setStops] = useState<LocalStop[]>([]);
@@ -69,6 +72,9 @@ export default function PlanEditScreen() {
                 durationDays: res.data.durationDays,
                 isPublic: res.data.isPublic,
                 isShowcase: res.data.isShowcase,
+                nameEs: res.data.nameEs ?? null,
+                descriptionEs: res.data.descriptionEs ?? null,
+                translationStatusEs: res.data.translationStatusEs ?? null,
             };
             setForm(f);
             originalFormRef.current = f;
@@ -169,6 +175,21 @@ export default function PlanEditScreen() {
                 },
             },
         ]);
+    };
+
+    const handleSuggestTranslation = async () => {
+        setTranslating(true);
+        const res = await api<{ nameEs: string; descriptionEs: string }>(`/admin/plans/${id}/translate`, { method: 'POST' });
+        setTranslating(false);
+        if (res.data) {
+            setForm(f => ({
+                ...f,
+                nameEs: res.data!.nameEs ?? f.nameEs,
+                descriptionEs: res.data!.descriptionEs ?? f.descriptionEs,
+            }));
+        } else {
+            Alert.alert('Error', `Translation failed: ${res.error}`);
+        }
     };
 
     const handleAddStop = (place: PlaceData) => {
@@ -329,6 +350,53 @@ export default function PlanEditScreen() {
                         />
                     </View>
                 </View>
+
+                {/* Translations (ES) — curated plans only */}
+                {plan?.source === 'curated' && (
+                    <>
+                        <Text style={styles.sectionTitle}>Translation ES</Text>
+                        <View style={styles.section}>
+                            <Pressable
+                                style={[styles.translateBtn, translating && { opacity: 0.5 }]}
+                                onPress={handleSuggestTranslation}
+                                disabled={translating}
+                            >
+                                {translating
+                                    ? <ActivityIndicator color="#fff" size="small" />
+                                    : <Text style={styles.translateBtnText}>Suggest ES Translation (Gemini)</Text>
+                                }
+                            </Pressable>
+
+                            <View style={styles.toggleRow}>
+                                <Text style={styles.toggleLabel}>Approved ES</Text>
+                                <Switch
+                                    value={form.translationStatusEs === 'approved'}
+                                    onValueChange={(v) => setForm(f => ({ ...f, translationStatusEs: v ? 'approved' : 'draft' }))}
+                                    trackColor={{ false: colors.borderColor, true: colors.successEmerald }}
+                                />
+                            </View>
+
+                            <FieldLabel label="Name (ES)" />
+                            <TextInput
+                                style={styles.input}
+                                value={form.nameEs ?? ''}
+                                onChangeText={(v) => setForm(f => ({ ...f, nameEs: v || null }))}
+                                placeholder={form.name}
+                                placeholderTextColor={colors.textSecondary}
+                            />
+
+                            <FieldLabel label="Description (ES)" />
+                            <TextInput
+                                style={[styles.input, styles.multilineInput]}
+                                value={form.descriptionEs ?? ''}
+                                onChangeText={(v) => setForm(f => ({ ...f, descriptionEs: v || null }))}
+                                placeholder={form.description || ''}
+                                placeholderTextColor={colors.textSecondary}
+                                multiline numberOfLines={3} textAlignVertical="top"
+                            />
+                        </View>
+                    </>
+                )}
 
                 {/* Stops by day */}
                 <Text style={styles.sectionTitle}>Stops</Text>
@@ -511,4 +579,9 @@ const styles = StyleSheet.create({
         marginTop: spacing.md, borderWidth: 1, borderColor: colors.error,
     },
     deleteBtnText: { color: colors.error, fontSize: 16, fontFamily: fonts.bodySemiBold },
+    translateBtn: {
+        backgroundColor: colors.electricBlue, borderRadius: borderRadius.md,
+        paddingVertical: spacing.md, alignItems: 'center', marginBottom: spacing.md,
+    },
+    translateBtnText: { color: '#fff', fontSize: 15, fontFamily: fonts.bodySemiBold },
 });

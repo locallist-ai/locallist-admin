@@ -61,6 +61,9 @@ export default function DashboardScreen() {
     const [plansLoading, setPlansLoading] = useState(false);
     const [plansLoadingMore, setPlansLoadingMore] = useState(false);
 
+    // Batch translate state
+    const [translatingBatch, setTranslatingBatch] = useState(false);
+
     // ─── Places logic ───
 
     const buildPlacesQuery = useCallback((status: StatusTab, limit: number, offset: number, category?: string | null) => {
@@ -239,6 +242,58 @@ export default function DashboardScreen() {
         loadPlans(plans.length);
     };
 
+    const handleTranslatePlacesBatch = async () => {
+        Alert.alert(
+            'Translate All Curated Places (ES)',
+            'This will send all untranslated curated places to Gemini for ES draft translation. Continue?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Translate',
+                    onPress: async () => {
+                        setTranslatingBatch(true);
+                        const res = await api<{ translated: number; failed: number; skipped: number; remaining: number }>(
+                            '/admin/places/translate-batch',
+                            { method: 'POST' }
+                        );
+                        setTranslatingBatch(false);
+                        if (res.data) {
+                            Alert.alert('Done', `Translated: ${res.data.translated}, Failed: ${res.data.failed}, Skipped: ${res.data.skipped}${res.data.remaining > 0 ? `\n${res.data.remaining} remaining — tap again to continue.` : ''}`);
+                        } else {
+                            Alert.alert('Error', `Batch translate failed: ${res.error}`);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleTranslatePlansBatch = async () => {
+        Alert.alert(
+            'Translate All Curated Plans (ES)',
+            'This will send all untranslated curated plans to Gemini for ES draft translation. Continue?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Translate',
+                    onPress: async () => {
+                        setTranslatingBatch(true);
+                        const res = await api<{ translated: number; failed: number; skipped: number; remaining: number }>(
+                            '/admin/plans/translate-batch',
+                            { method: 'POST' }
+                        );
+                        setTranslatingBatch(false);
+                        if (res.data) {
+                            Alert.alert('Done', `Translated: ${res.data.translated}, Failed: ${res.data.failed}, Skipped: ${res.data.skipped}`);
+                        } else {
+                            Alert.alert('Error', `Batch translate failed: ${res.error}`);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
     // ─── Render helpers ───
 
     const renderPlaceItem = ({ item }: { item: PlaceData }) => (
@@ -412,6 +467,20 @@ export default function DashboardScreen() {
                             </View>
                         )}
 
+                        {/* Batch translate action (published places only) */}
+                        {activeTab === 'published' && (
+                            <Pressable
+                                style={[styles.batchTranslateBtn, translatingBatch && { opacity: 0.5 }]}
+                                onPress={handleTranslatePlacesBatch}
+                                disabled={translatingBatch}
+                            >
+                                {translatingBatch
+                                    ? <ActivityIndicator color="#fff" size="small" />
+                                    : <Text style={styles.batchTranslateBtnText}>Translate All Curated → ES</Text>
+                                }
+                            </Pressable>
+                        )}
+
                         {/* Places content */}
                         {loading ? (
                             <View style={styles.centerContentInline}>
@@ -473,7 +542,18 @@ export default function DashboardScreen() {
                     </>
                 ) : (
                     /* Plans content */
-                    plansLoading ? (
+                    <>
+                    <Pressable
+                        style={[styles.batchTranslateBtn, translatingBatch && { opacity: 0.5 }]}
+                        onPress={handleTranslatePlansBatch}
+                        disabled={translatingBatch}
+                    >
+                        {translatingBatch
+                            ? <ActivityIndicator color="#fff" size="small" />
+                            : <Text style={styles.batchTranslateBtnText}>Translate All Curated → ES</Text>
+                        }
+                    </Pressable>
+                    {plansLoading ? (
                         <View style={styles.centerContentInline}>
                             <ActivityIndicator color={colors.electricBlue} size="large" />
                         </View>
@@ -500,7 +580,8 @@ export default function DashboardScreen() {
                                 </>
                             )}
                         </View>
-                    )
+                    )}
+                    </>
                 )}
             </ScrollView>
 
@@ -636,4 +717,12 @@ const styles = StyleSheet.create({
         marginTop: spacing.sm,
     },
     loadMoreText: { color: colors.electricBlue, fontFamily: fonts.bodySemiBold, fontSize: 14 },
+
+    // Batch translate
+    batchTranslateBtn: {
+        marginHorizontal: 20, marginBottom: spacing.sm, paddingVertical: spacing.sm,
+        borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.electricBlue,
+        alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm,
+    },
+    batchTranslateBtnText: { color: colors.electricBlue, fontFamily: fonts.bodySemiBold, fontSize: 13 },
 });
