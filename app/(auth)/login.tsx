@@ -82,7 +82,6 @@ export default function LoginScreen() {
                     resizeMode="contain"
                 />
                 <Text style={styles.title}>Curator Dashboard</Text>
-                <Text style={styles.subtitle}>Internal tool — @locallist.ai only</Text>
 
                 {error && <Text style={styles.error}>{error}</Text>}
 

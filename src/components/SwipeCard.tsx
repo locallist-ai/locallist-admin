@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, Pressable, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
     useSharedValue,
@@ -23,6 +24,7 @@ interface SwipeCardProps {
 
 export default function SwipeCard({ place, isTop, onApprove, onReject, showButtons = false }: SwipeCardProps) {
     const { width, height } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
     const router = useRouter();
     const SWIPE_THRESHOLD = width * 0.3;
 
@@ -84,18 +86,23 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
     }));
 
     const cardWidth = Math.min(width * 0.9, 480);
-    const cardHeight = height * 0.7;
+    // Subtract safe area + header/tabs/segment chrome (~260px) so the card fits without scrolling
+    const cardHeight = Math.min(
+        height * 0.58,
+        height - insets.top - insets.bottom - 260
+    );
     const photoUrl = place.photos?.[0];
 
     const cardContent = (
         <Animated.View
             style={[
-                styles.card,
+                styles.cardWrapper,
                 { width: cardWidth, height: cardHeight },
                 animatedStyle,
                 { position: isTop ? 'relative' : 'absolute' },
             ]}
         >
+        <View style={styles.card}>
             {photoUrl ? (
                 <Image source={{ uri: photoUrl }} style={styles.image} resizeMode="cover" />
             ) : (
@@ -144,6 +151,7 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
                     </View>
                 )}
             </View>
+        </View>
         </Animated.View>
     );
 
@@ -167,14 +175,20 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
 }
 
 const styles = StyleSheet.create({
-    card: {
+    cardWrapper: {
         borderRadius: borderRadius.xl,
-        backgroundColor: colors.bgCard,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.15,
+        borderWidth: 2,
+        borderColor: colors.sunsetOrange,
+        shadowColor: colors.sunsetOrange,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
         shadowRadius: 20,
         elevation: 10,
+    },
+    card: {
+        flex: 1,
+        borderRadius: borderRadius.xl - 2,
+        backgroundColor: colors.bgCard,
         overflow: 'hidden',
     },
     image: {
