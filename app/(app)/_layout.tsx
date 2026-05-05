@@ -40,6 +40,12 @@ export default function AppLayout() {
                     title: 'Edit Plan',
                 }}
             />
+            <Stack.Screen
+                name="places/import-google"
+                options={{
+                    title: 'Import from Google',
+                }}
+            />
         </Stack>
     );
 }

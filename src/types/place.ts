@@ -58,3 +58,24 @@ export interface ReviewPlaceRequest {
     status: 'published' | 'rejected';
     rejectionReason?: string;
 }
+
+/** One result from POST /admin/places/google-search */
+export interface GooglePlacePreview {
+    googlePlaceId: string;
+    name: string;
+    formattedAddress?: string;
+    lat?: number;
+    lng?: number;
+    rating?: number;
+    reviewCount?: number;
+    priceLevel?: string;
+    photos: string[];
+    types: string[];
+    website?: string;
+    phone?: string;
+    existsInLib: boolean;
+}
+
+export interface GoogleSearchResponse {
+    results: GooglePlacePreview[];
+}

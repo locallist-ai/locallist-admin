@@ -8,6 +8,8 @@ import {
     Alert,
     Image,
     ScrollView,
+    ActionSheetIOS,
+    Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../../src/lib/api';
@@ -422,7 +424,30 @@ export default function DashboardScreen() {
                     <View style={styles.headerRight}>
                         <Pressable
                             style={styles.createBtn}
-                            onPress={() => router.push(mode === 'places' ? '/place/create' : '/plans/create')}
+                            onPress={() => {
+                                if (mode === 'plans') {
+                                    router.push('/plans/create');
+                                    return;
+                                }
+                                if (Platform.OS === 'ios') {
+                                    ActionSheetIOS.showActionSheetWithOptions(
+                                        {
+                                            options: ['Cancel', 'Create manually', 'Import from Google'],
+                                            cancelButtonIndex: 0,
+                                        },
+                                        (idx) => {
+                                            if (idx === 1) router.push('/place/create');
+                                            else if (idx === 2) router.push('/places/import-google');
+                                        }
+                                    );
+                                } else {
+                                    Alert.alert('Add place', '', [
+                                        { text: 'Create manually', onPress: () => router.push('/place/create') },
+                                        { text: 'Import from Google', onPress: () => router.push('/places/import-google') },
+                                        { text: 'Cancel', style: 'cancel' },
+                                    ]);
+                                }
+                            }}
                         >
                             <Text style={styles.createBtnText}>+ Create</Text>
                         </Pressable>
