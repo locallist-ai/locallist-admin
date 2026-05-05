@@ -177,6 +177,42 @@ export default function DashboardScreen() {
         if (place) setRejectionTarget(place);
     };
 
+    const handlePlaceStatusChange = async (placeId: string, newStatus: StatusTab, reason?: string) => {
+        const idx = places.findIndex((p) => p.id === placeId);
+        const removed = idx >= 0 ? places[idx] : null;
+        setPlaces((prev) => prev.filter((p) => p.id !== placeId));
+
+        const body: Record<string, string> = { status: newStatus };
+        if (reason) body.rejectionReason = reason;
+
+        const res = await api(`/admin/places/${placeId}/review`, { method: 'PATCH', body });
+
+        if (res.error) {
+            if (removed) setPlaces((prev) => {
+                const next = [...prev];
+                next.splice(Math.min(idx, next.length), 0, removed);
+                return next;
+            });
+            Alert.alert('Error', `Failed to update: ${res.error}`);
+        } else {
+            setCounts((prev) => {
+                const next = { ...prev };
+                next[activeTab] = Math.max(0, next[activeTab] - 1);
+                next[newStatus] = next[newStatus] + 1;
+                return next;
+            });
+        }
+    };
+
+    const handlePlanUnpublish = async (planId: string) => {
+        setPlans((prev) => prev.filter((p) => p.id !== planId));
+        const res = await api(`/admin/plans/${planId}`, { method: 'PATCH', body: { isPublic: false } });
+        if (res.error) {
+            Alert.alert('Error', `Failed to unpublish: ${res.error}`);
+            loadPlans();
+        }
+    };
+
     const handleRejectConfirm = async (reason: string) => {
         if (!rejectionTarget) return;
         const placeId = rejectionTarget.id;
@@ -297,41 +333,80 @@ export default function DashboardScreen() {
     // ─── Render helpers ───
 
     const renderPlaceItem = ({ item }: { item: PlaceData }) => (
-        <Pressable style={styles.listItem} onPress={() => router.push(`/place/${item.id}`)}>
-            {item.photos?.[0] ? (
-                <Image source={{ uri: item.photos[0] }} style={styles.listThumb} />
-            ) : (
-                <View style={[styles.listThumb, { backgroundColor: colors.borderColor }]} />
+        <View style={styles.listItem}>
+            <Pressable style={styles.listItemMain} onPress={() => router.push(`/place/${item.id}`)}>
+                {item.photos?.[0] ? (
+                    <Image source={{ uri: item.photos[0] }} style={styles.listThumb} />
+                ) : (
+                    <View style={[styles.listThumb, { backgroundColor: colors.borderColor }]} />
+                )}
+                <View style={styles.listInfo}>
+                    <Text style={styles.listName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.listSub} numberOfLines={1}>
+                        {item.category}
+                        {item.neighborhood ? ` · ${item.neighborhood}` : ''}
+                        {item.priceRange ? ` · ${item.priceRange}` : ''}
+                    </Text>
+                </View>
+                <Text style={styles.listChevron}>›</Text>
+            </Pressable>
+            {activeTab !== 'in_review' && (
+                <View style={styles.itemActions}>
+                    <Pressable
+                        style={styles.actionBtnQueue}
+                        onPress={() => handlePlaceStatusChange(item.id, 'in_review')}
+                    >
+                        <Text style={styles.actionBtnQueueText}>Queue</Text>
+                    </Pressable>
+                    {activeTab === 'published' ? (
+                        <Pressable
+                            style={styles.actionBtnReject}
+                            onPress={() => handleRejectStart(item.id)}
+                        >
+                            <Text style={styles.actionBtnRejectText}>Reject</Text>
+                        </Pressable>
+                    ) : (
+                        <Pressable
+                            style={styles.actionBtnPublish}
+                            onPress={() => handlePlaceStatusChange(item.id, 'published')}
+                        >
+                            <Text style={styles.actionBtnPublishText}>Publish</Text>
+                        </Pressable>
+                    )}
+                </View>
             )}
-            <View style={styles.listInfo}>
-                <Text style={styles.listName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.listSub} numberOfLines={1}>
-                    {item.category}
-                    {item.neighborhood ? ` · ${item.neighborhood}` : ''}
-                    {item.priceRange ? ` · ${item.priceRange}` : ''}
-                </Text>
-            </View>
-            <Text style={styles.listChevron}>›</Text>
-        </Pressable>
+        </View>
     );
 
     const renderPlanItem = ({ item }: { item: PlanData }) => (
-        <Pressable style={styles.listItem} onPress={() => router.push(`/plans/${item.id}`)}>
-            <View style={styles.planIcon}>
-                <Text style={styles.planIconText}>{item.durationDays}d</Text>
-            </View>
-            <View style={styles.listInfo}>
-                <Text style={styles.listName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.listSub} numberOfLines={1}>
-                    {item.city} · {item.type}
-                    {item.isShowcase ? ' · Showcase' : ''}
-                </Text>
-            </View>
-            <View style={styles.planBadges}>
-                {item.isPublic && <Text style={styles.publicBadge}>Public</Text>}
-            </View>
-            <Text style={styles.listChevron}>›</Text>
-        </Pressable>
+        <View style={styles.listItem}>
+            <Pressable style={styles.listItemMain} onPress={() => router.push(`/plans/${item.id}`)}>
+                <View style={styles.planIcon}>
+                    <Text style={styles.planIconText}>{item.durationDays}d</Text>
+                </View>
+                <View style={styles.listInfo}>
+                    <Text style={styles.listName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.listSub} numberOfLines={1}>
+                        {item.city} · {item.type}
+                        {item.isShowcase ? ' · Showcase' : ''}
+                    </Text>
+                </View>
+                <View style={styles.planBadges}>
+                    {item.isPublic && <Text style={styles.publicBadge}>Public</Text>}
+                </View>
+                <Text style={styles.listChevron}>›</Text>
+            </Pressable>
+            {item.isPublic && (
+                <View style={styles.itemActions}>
+                    <Pressable
+                        style={styles.actionBtnReject}
+                        onPress={() => handlePlanUnpublish(item.id)}
+                    >
+                        <Text style={styles.actionBtnRejectText}>Unpublish</Text>
+                    </Pressable>
+                </View>
+            )}
+        </View>
     );
 
     return (
@@ -682,16 +757,36 @@ const styles = StyleSheet.create({
         maxWidth: 960, alignSelf: 'center', width: '100%',
     },
     listItem: {
-        flexDirection: 'row', alignItems: 'center',
         backgroundColor: colors.bgCard, borderRadius: borderRadius.md,
-        padding: spacing.md, marginBottom: spacing.sm,
-        borderWidth: 1, borderColor: colors.borderColor,
+        marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.borderColor,
+        overflow: 'hidden',
+    },
+    listItemMain: {
+        flexDirection: 'row', alignItems: 'center', padding: spacing.md,
     },
     listThumb: { width: 52, height: 52, borderRadius: borderRadius.sm },
     listInfo: { flex: 1, marginLeft: spacing.md },
     listName: { fontSize: 15, fontFamily: fonts.bodySemiBold, color: colors.textMain, marginBottom: 2 },
     listSub: { fontSize: 13, fontFamily: fonts.body, color: colors.textSecondary },
     listChevron: { fontSize: 22, color: colors.textSecondary, paddingLeft: spacing.sm },
+
+    // Inline status action buttons
+    itemActions: {
+        flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.borderColor,
+    },
+    actionBtnQueue: {
+        flex: 1, paddingVertical: spacing.sm, alignItems: 'center',
+        borderRightWidth: 1, borderRightColor: colors.borderColor,
+    },
+    actionBtnQueueText: { fontSize: 13, fontFamily: fonts.bodySemiBold, color: colors.electricBlue },
+    actionBtnReject: {
+        flex: 1, paddingVertical: spacing.sm, alignItems: 'center',
+    },
+    actionBtnRejectText: { fontSize: 13, fontFamily: fonts.bodySemiBold, color: colors.error },
+    actionBtnPublish: {
+        flex: 1, paddingVertical: spacing.sm, alignItems: 'center',
+    },
+    actionBtnPublishText: { fontSize: 13, fontFamily: fonts.bodySemiBold, color: colors.successEmerald },
 
     // Plan-specific
     planIcon: {
