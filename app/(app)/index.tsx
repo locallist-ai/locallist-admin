@@ -254,7 +254,7 @@ export default function DashboardScreen() {
         if (isInitial) setPlansLoading(true);
         else setPlansLoadingMore(true);
 
-        const res = await api<PlansResponse>(`/admin/plans?source=curated&limit=${PAGE_SIZE}&offset=${offset}`);
+        const res = await api<PlansResponse>(`/admin/plans?isShowcase=true&limit=${PAGE_SIZE}&offset=${offset}`);
 
         if (res.data) {
             if (isInitial) {
@@ -383,9 +383,13 @@ export default function DashboardScreen() {
     const renderPlanItem = ({ item }: { item: PlanData }) => (
         <View style={styles.listItem}>
             <Pressable style={styles.listItemMain} onPress={() => router.push(`/plans/${item.id}`)}>
-                <View style={styles.planIcon}>
-                    <Text style={styles.planIconText}>{item.durationDays}d</Text>
-                </View>
+                {item.imageUrl ? (
+                    <Image source={{ uri: item.imageUrl }} style={styles.listThumb} resizeMode="cover" />
+                ) : (
+                    <View style={styles.planIcon}>
+                        <Text style={styles.planIconText}>{item.durationDays}d</Text>
+                    </View>
+                )}
                 <View style={styles.listInfo}>
                     <Text style={styles.listName} numberOfLines={1}>{item.name}</Text>
                     <Text style={styles.listSub} numberOfLines={1}>

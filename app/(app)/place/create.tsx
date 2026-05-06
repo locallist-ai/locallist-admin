@@ -14,7 +14,7 @@ import { useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import type { PlaceData } from '../../../src/types/place';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
-import { CATEGORIES, PRICE_RANGES, BEST_TIMES, STATUSES } from '../../../src/lib/constants';
+import { CATEGORIES, PRICE_RANGES, BEST_TIMES, STATUSES, getSubcategories } from '../../../src/lib/constants';
 
 export default function PlaceCreateScreen() {
     const router = useRouter();
@@ -143,13 +143,23 @@ export default function PlaceCreateScreen() {
                     </View>
 
                     <FieldLabel label="Subcategory" />
-                    <TextInput
-                        style={styles.input}
-                        value={form.subcategory ?? ''}
-                        onChangeText={(v) => updateField('subcategory', v)}
-                        placeholder="e.g. Speakeasy cocktail bar"
-                        placeholderTextColor={colors.textSecondary}
-                    />
+                    {form.category ? (
+                        <View style={styles.chipRow}>
+                            {getSubcategories(form.category).map((sub) => (
+                                <Pressable
+                                    key={sub}
+                                    style={[styles.chip, form.subcategory === sub && styles.chipActive]}
+                                    onPress={() => updateField('subcategory', form.subcategory === sub ? '' : sub)}
+                                >
+                                    <Text style={[styles.chipText, form.subcategory === sub && styles.chipTextActive]}>
+                                        {sub}
+                                    </Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    ) : (
+                        <Text style={styles.subcategoryHint}>Select a category first</Text>
+                    )}
 
                     <FieldLabel label="Why This Place *" />
                     <TextInput
@@ -363,6 +373,7 @@ const styles = StyleSheet.create({
     chipActive: { backgroundColor: colors.electricBlue, borderColor: colors.electricBlue },
     chipText: { fontSize: 13, color: colors.textSecondary, fontFamily: fonts.bodySemiBold },
     chipTextActive: { color: '#fff' },
+    subcategoryHint: { fontSize: 13, color: colors.textSecondary, fontFamily: fonts.body, fontStyle: 'italic', marginTop: 4 },
     tagChip: {
         backgroundColor: colors.electricBlueLight, paddingHorizontal: 12,
         paddingVertical: 5, borderRadius: 14,
