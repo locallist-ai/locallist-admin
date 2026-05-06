@@ -89,7 +89,7 @@ export default function ImportGoogleScreen() {
                     name: r.name,
                     category,
                     subcategory,
-                    whyThisPlace: 'Importado desde Google Places — pendiente de redacción curatorial',
+                    whyThisPlace: 'Importado desde Google Places. Pendiente de redacción curatorial.',
                     city: city.trim() || 'Miami',
                     latitude: r.lat,
                     longitude: r.lng,
@@ -199,7 +199,7 @@ export default function ImportGoogleScreen() {
                     <>
                         <Text style={styles.sectionTitle}>
                             {results.length > 0
-                                ? `${results.length} results — tap to select`
+                                ? `${results.length} results - tap to select`
                                 : 'No results'}
                         </Text>
                         {results.map((place) => {

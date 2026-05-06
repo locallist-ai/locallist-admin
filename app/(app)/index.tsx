@@ -299,7 +299,7 @@ export default function DashboardScreen() {
                         );
                         setTranslatingBatch(false);
                         if (res.data) {
-                            Alert.alert('Done', `Translated: ${res.data.translated}, Failed: ${res.data.failed}, Skipped: ${res.data.skipped}${res.data.remaining > 0 ? `\n${res.data.remaining} remaining — tap again to continue.` : ''}`);
+                            Alert.alert('Done', `Translated: ${res.data.translated}, Failed: ${res.data.failed}, Skipped: ${res.data.skipped}${res.data.remaining > 0 ? `\n${res.data.remaining} remaining - tap again to continue.` : ''}`);
                         } else {
                             Alert.alert('Error', `Batch translate failed: ${res.error}`);
                         }
