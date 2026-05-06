@@ -25,9 +25,9 @@ const MAX_RETRIES = 1;
 
 export async function api<T>(
     path: string,
-    options: { method?: string; body?: any; headers?: Record<string, string>; timeoutMs?: number } = {},
+    options: { method?: string; body?: any; headers?: Record<string, string>; timeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<ApiResult<T>> {
-    const { method = 'GET', body, headers = {}, timeoutMs = TIMEOUT_MS } = options;
+    const { method = 'GET', body, headers = {}, timeoutMs = TIMEOUT_MS, signal: externalSignal } = options;
 
     // Get fresh Firebase JWT (auto-refreshed by Firebase SDK — no manual refresh needed here)
     const token = await auth.currentUser?.getIdToken();
@@ -41,7 +41,9 @@ export async function api<T>(
 
     let attempt = 0;
     while (attempt <= MAX_RETRIES) {
+        if (externalSignal?.aborted) return { data: null, error: 'cancelled', errorBody: null, status: 0 };
         const controller = new AbortController();
+        externalSignal?.addEventListener('abort', () => controller.abort());
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
             const res = await fetch(`${API_URL}${path}`, {

@@ -10,6 +10,7 @@ import {
     ScrollView,
     ActionSheetIOS,
     Platform,
+    Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../../src/lib/api';
@@ -64,7 +65,8 @@ export default function DashboardScreen() {
     const [plansLoadingMore, setPlansLoadingMore] = useState(false);
 
     // Batch translate state
-    const [translatingBatch, setTranslatingBatch] = useState(false);
+    const [batchProgress, setBatchProgress] = useState<{ label: string; current: number; total: number } | null>(null);
+    const batchCancelRef = useRef<AbortController | null>(null);
 
     // Reindex state
     const [reindexing, setReindexing] = useState(false);
@@ -283,54 +285,74 @@ export default function DashboardScreen() {
         loadPlans(plans.length);
     };
 
-    const handleTranslatePlacesBatch = async () => {
+    const runBatchTranslateLoop = async (
+        endpoint: '/admin/places/translate-batch' | '/admin/plans/translate-batch',
+        label: string,
+    ) => {
+        const controller = new AbortController();
+        batchCancelRef.current = controller;
+        let translated = 0;
+        let failed = 0;
+        let total: number | null = null;
+        let consecutiveErrors = 0;
+
+        while (!controller.signal.aborted) {
+            const res = await api<{ translated: number; failed: number; skipped: number; remaining: number }>(
+                `${endpoint}?limit=10`,
+                { method: 'POST', timeoutMs: 60_000, signal: controller.signal },
+            );
+
+            if (controller.signal.aborted) break;
+
+            if (!res.data) {
+                consecutiveErrors++;
+                if (consecutiveErrors >= 3) {
+                    setBatchProgress(null);
+                    Alert.alert('Error', `Batch translate failed: ${res.error}`);
+                    return;
+                }
+                continue;
+            }
+
+            consecutiveErrors = 0;
+            translated += res.data.translated;
+            failed += res.data.failed;
+
+            if (total === null) {
+                total = translated + failed + res.data.skipped + res.data.remaining;
+            }
+
+            setBatchProgress({ label, current: translated, total: total ?? translated });
+
+            if (res.data.remaining === 0) break;
+        }
+
+        setBatchProgress(null);
+        batchCancelRef.current = null;
+
+        if (!controller.signal.aborted) {
+            Alert.alert('Done', `Translated: ${translated}, Failed: ${failed}`);
+        }
+    };
+
+    const handleTranslatePlacesBatch = () => {
         Alert.alert(
             'Translate All Curated Places (ES)',
             'This will send all untranslated curated places to Gemini for ES draft translation. Continue?',
             [
                 { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Translate',
-                    onPress: async () => {
-                        setTranslatingBatch(true);
-                        const res = await api<{ translated: number; failed: number; skipped: number; remaining: number }>(
-                            '/admin/places/translate-batch',
-                            { method: 'POST', timeoutMs: 120_000 }
-                        );
-                        setTranslatingBatch(false);
-                        if (res.data) {
-                            Alert.alert('Done', `Translated: ${res.data.translated}, Failed: ${res.data.failed}, Skipped: ${res.data.skipped}${res.data.remaining > 0 ? `\n${res.data.remaining} remaining - tap again to continue.` : ''}`);
-                        } else {
-                            Alert.alert('Error', `Batch translate failed: ${res.error}`);
-                        }
-                    },
-                },
+                { text: 'Translate', onPress: () => runBatchTranslateLoop('/admin/places/translate-batch', 'Translating places…') },
             ]
         );
     };
 
-    const handleTranslatePlansBatch = async () => {
+    const handleTranslatePlansBatch = () => {
         Alert.alert(
             'Translate All Curated Plans (ES)',
             'This will send all untranslated curated plans to Gemini for ES draft translation. Continue?',
             [
                 { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Translate',
-                    onPress: async () => {
-                        setTranslatingBatch(true);
-                        const res = await api<{ translated: number; failed: number; skipped: number; remaining: number }>(
-                            '/admin/plans/translate-batch',
-                            { method: 'POST', timeoutMs: 120_000 }
-                        );
-                        setTranslatingBatch(false);
-                        if (res.data) {
-                            Alert.alert('Done', `Translated: ${res.data.translated}, Failed: ${res.data.failed}, Skipped: ${res.data.skipped}`);
-                        } else {
-                            Alert.alert('Error', `Batch translate failed: ${res.error}`);
-                        }
-                    },
-                },
+                { text: 'Translate', onPress: () => runBatchTranslateLoop('/admin/plans/translate-batch', 'Translating plans…') },
             ]
         );
     };
@@ -601,14 +623,11 @@ export default function DashboardScreen() {
                         {activeTab === 'published' && (
                             <View style={styles.batchActionsRow}>
                                 <Pressable
-                                    style={[styles.batchTranslateBtn, { flex: 1 }, translatingBatch && { opacity: 0.5 }]}
+                                    style={[styles.batchTranslateBtn, { flex: 1 }, !!batchProgress && { opacity: 0.5 }]}
                                     onPress={handleTranslatePlacesBatch}
-                                    disabled={translatingBatch}
+                                    disabled={!!batchProgress}
                                 >
-                                    {translatingBatch
-                                        ? <ActivityIndicator color="#fff" size="small" />
-                                        : <Text style={styles.batchTranslateBtnText}>Translate → ES</Text>
-                                    }
+                                    <Text style={styles.batchTranslateBtnText}>Translate → ES</Text>
                                 </Pressable>
                                 <Pressable
                                     style={[styles.reindexBtn, reindexing && { opacity: 0.5 }]}
@@ -686,14 +705,11 @@ export default function DashboardScreen() {
                     /* Plans content */
                     <>
                     <Pressable
-                        style={[styles.batchTranslateBtn, translatingBatch && { opacity: 0.5 }]}
+                        style={[styles.batchTranslateBtn, !!batchProgress && { opacity: 0.5 }]}
                         onPress={handleTranslatePlansBatch}
-                        disabled={translatingBatch}
+                        disabled={!!batchProgress}
                     >
-                        {translatingBatch
-                            ? <ActivityIndicator color="#fff" size="small" />
-                            : <Text style={styles.batchTranslateBtnText}>Translate All Curated → ES</Text>
-                        }
+                        <Text style={styles.batchTranslateBtnText}>Translate All Curated → ES</Text>
                     </Pressable>
                     {plansLoading ? (
                         <View style={styles.centerContentInline}>
@@ -733,6 +749,25 @@ export default function DashboardScreen() {
                 onConfirm={handleRejectConfirm}
                 onCancel={() => setRejectionTarget(null)}
             />
+
+            {/* Batch translate progress overlay */}
+            <Modal visible={!!batchProgress} transparent animationType="fade">
+                <View style={styles.batchOverlay}>
+                    <View style={styles.batchOverlayCard}>
+                        <ActivityIndicator color={colors.electricBlue} size="large" />
+                        <Text style={styles.batchOverlayLabel}>{batchProgress?.label}</Text>
+                        <Text style={styles.batchOverlayCount}>
+                            {batchProgress ? `${batchProgress.current} / ${batchProgress.total}` : ''}
+                        </Text>
+                        <Pressable
+                            onPress={() => { batchCancelRef.current?.abort(); setBatchProgress(null); }}
+                            style={styles.batchOverlayCancel}
+                        >
+                            <Text style={styles.batchOverlayCancelText}>Cancel</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -893,4 +928,20 @@ const styles = StyleSheet.create({
         alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm,
     },
     batchTranslateBtnText: { color: colors.electricBlue, fontFamily: fonts.bodySemiBold, fontSize: 13 },
+
+    // Batch translate progress overlay
+    batchOverlay: {
+        flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
+    },
+    batchOverlayCard: {
+        backgroundColor: colors.bgMain, borderRadius: 16, padding: 32,
+        alignItems: 'center', gap: 16, minWidth: 240,
+    },
+    batchOverlayLabel: { color: colors.textMain, fontFamily: fonts.bodySemiBold, fontSize: 16 },
+    batchOverlayCount: { color: colors.textSecondary, fontFamily: fonts.body, fontSize: 14 },
+    batchOverlayCancel: {
+        marginTop: 8, paddingVertical: 8, paddingHorizontal: 24,
+        borderRadius: 8, borderWidth: 1, borderColor: colors.error,
+    },
+    batchOverlayCancelText: { color: colors.error, fontFamily: fonts.bodySemiBold, fontSize: 14 },
 });
