@@ -24,6 +24,8 @@ function RootLayoutNav() {
         }
     }, [token, isLoading, segments]);
 
+    if (isLoading) return null;
+
     return <Slot />;
 }
 
