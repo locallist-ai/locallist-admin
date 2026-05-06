@@ -15,7 +15,7 @@ import { useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import type { GooglePlacePreview, GoogleSearchResponse } from '../../../src/types/place';
 import type { PlaceData } from '../../../src/types/place';
-import { CATEGORIES } from '../../../src/lib/constants';
+import { CATEGORIES, inferSubcategoryFromGoogleTypes } from '../../../src/lib/constants';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 
 export default function ImportGoogleScreen() {
@@ -28,6 +28,8 @@ export default function ImportGoogleScreen() {
     const [loading, setLoading] = useState(false);
     const [importing, setImporting] = useState(false);
     const [searched, setSearched] = useState(false);
+    // Per-place subcategory overrides (googlePlaceId → subcategory)
+    const [subcategoryOverrides, setSubcategoryOverrides] = useState<Record<string, string | null>>({});
 
     const handleSearch = async () => {
         const q = query.trim();
@@ -38,6 +40,7 @@ export default function ImportGoogleScreen() {
         setLoading(true);
         setResults([]);
         setSelected(new Set());
+        setSubcategoryOverrides({});
         setSearched(false);
 
         const res = await api<GoogleSearchResponse>('/admin/places/google-search', {
@@ -64,6 +67,10 @@ export default function ImportGoogleScreen() {
         });
     };
 
+    const setSubcategoryOverride = (googlePlaceId: string, sub: string | null) => {
+        setSubcategoryOverrides((prev) => ({ ...prev, [googlePlaceId]: sub }));
+    };
+
     const handleImport = async () => {
         if (selected.size === 0) return;
         if (!category) {
@@ -73,22 +80,29 @@ export default function ImportGoogleScreen() {
 
         const toImport = results
             .filter((r) => selected.has(r.googlePlaceId) && !r.existsInLib)
-            .map<Partial<PlaceData>>((r) => ({
-                name: r.name,
-                category,
-                whyThisPlace: 'Importado desde Google Places — pendiente de redacción curatorial',
-                city: city.trim() || 'Miami',
-                latitude: r.lat,
-                longitude: r.lng,
-                googlePlaceId: r.googlePlaceId,
-                googleRating: r.rating,
-                googleReviewCount: r.reviewCount,
-                priceRange: r.priceLevel ?? undefined,
-                photos: r.photos,
-                sourceUrl: r.website,
-                source: 'google',
-                status: 'in_review',
-            }));
+            .map<Partial<PlaceData>>((r) => {
+                const inferredSub = inferSubcategoryFromGoogleTypes(category!, r.types ?? [], r.name);
+                const subcategory = subcategoryOverrides[r.googlePlaceId] !== undefined
+                    ? subcategoryOverrides[r.googlePlaceId] ?? undefined
+                    : inferredSub ?? undefined;
+                return {
+                    name: r.name,
+                    category,
+                    subcategory,
+                    whyThisPlace: 'Importado desde Google Places — pendiente de redacción curatorial',
+                    city: city.trim() || 'Miami',
+                    latitude: r.lat,
+                    longitude: r.lng,
+                    googlePlaceId: r.googlePlaceId,
+                    googleRating: r.rating,
+                    googleReviewCount: r.reviewCount,
+                    priceRange: r.priceLevel ?? undefined,
+                    photos: r.photos,
+                    sourceUrl: r.website,
+                    source: 'google',
+                    status: 'in_review',
+                };
+            });
 
         if (toImport.length === 0) {
             Alert.alert('Nothing to import', 'All selected places are already in the library.');
@@ -188,14 +202,27 @@ export default function ImportGoogleScreen() {
                                 ? `${results.length} results — tap to select`
                                 : 'No results'}
                         </Text>
-                        {results.map((place) => (
-                            <PlaceResultCard
-                                key={place.googlePlaceId}
-                                place={place}
-                                isSelected={selected.has(place.googlePlaceId)}
-                                onToggle={() => !place.existsInLib && toggleSelect(place.googlePlaceId)}
-                            />
-                        ))}
+                        {results.map((place) => {
+                            const inferred = category
+                                ? inferSubcategoryFromGoogleTypes(category, place.types ?? [], place.name)
+                                : null;
+                            const override = subcategoryOverrides[place.googlePlaceId];
+                            const activeSub = override !== undefined ? override : inferred;
+                            return (
+                                <PlaceResultCard
+                                    key={place.googlePlaceId}
+                                    place={place}
+                                    isSelected={selected.has(place.googlePlaceId)}
+                                    onToggle={() => !place.existsInLib && toggleSelect(place.googlePlaceId)}
+                                    suggestedSubcategory={activeSub}
+                                    onSubcategoryChange={
+                                        category
+                                            ? (sub) => setSubcategoryOverride(place.googlePlaceId, sub)
+                                            : undefined
+                                    }
+                                />
+                            );
+                        })}
                     </>
                 )}
 
@@ -226,10 +253,14 @@ function PlaceResultCard({
     place,
     isSelected,
     onToggle,
+    suggestedSubcategory,
+    onSubcategoryChange,
 }: {
     place: GooglePlacePreview;
     isSelected: boolean;
     onToggle: () => void;
+    suggestedSubcategory?: string | null;
+    onSubcategoryChange?: (sub: string | null) => void;
 }) {
     const thumb = place.photos[0];
     return (
@@ -267,6 +298,14 @@ function PlaceResultCard({
                     )}
                     {place.priceLevel != null && (
                         <Text style={styles.metaText}>{place.priceLevel}</Text>
+                    )}
+                    {suggestedSubcategory && onSubcategoryChange && !place.existsInLib && (
+                        <Pressable
+                            style={styles.subBadge}
+                            onPress={(e) => { e.stopPropagation?.(); onSubcategoryChange(suggestedSubcategory ? null : null); }}
+                        >
+                            <Text style={styles.subBadgeText}>{suggestedSubcategory} ✎</Text>
+                        </Pressable>
                     )}
                 </View>
             </View>
@@ -348,4 +387,9 @@ const styles = StyleSheet.create({
     },
     importBtnDisabled: { opacity: 0.4 },
     importBtnText: { color: '#fff', fontSize: 16, fontFamily: fonts.bodyBold },
+    subBadge: {
+        backgroundColor: 'rgba(99,102,241,0.12)', paddingHorizontal: 6, paddingVertical: 2,
+        borderRadius: 10, marginLeft: 4,
+    },
+    subBadgeText: { fontSize: 10, fontFamily: fonts.bodySemiBold, color: '#6366f1' },
 });

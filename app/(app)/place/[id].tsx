@@ -16,8 +16,8 @@ import { api } from '../../../src/lib/api';
 import type { PlaceData, PlaceTranslateDraft } from '../../../src/types/place';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 import { getDirtyFields as computeDirtyFields } from '../../../src/utils/getDirtyFields';
+import { CATEGORIES, SUBCATEGORIES_BY_CATEGORY, getSubcategories } from '../../../src/lib/constants';
 
-const CATEGORIES = ['Food', 'Nightlife', 'Coffee', 'Outdoors', 'Wellness', 'Culture'] as const;
 const PRICE_RANGES = ['$', '$$', '$$$', '$$$$'] as const;
 const BEST_TIMES = ['morning', 'lunch', 'afternoon', 'dinner', 'late_night'] as const;
 
@@ -210,13 +210,30 @@ export default function PlaceEditScreen() {
                     </View>
 
                     <FieldLabel label="Subcategory" />
-                    <TextInput
-                        style={styles.input}
-                        value={form.subcategory ?? ''}
-                        onChangeText={(v) => updateField('subcategory', v)}
-                        placeholder="e.g. Speakeasy cocktail bar"
-                        placeholderTextColor={colors.textSecondary}
-                    />
+                    {form.category ? (
+                        <>
+                            {form.subcategory && !getSubcategories(form.category).includes(form.subcategory) && (
+                                <Text style={styles.legacySubcategoryWarning}>
+                                    Legacy: "{form.subcategory}" — pick canonical below
+                                </Text>
+                            )}
+                            <View style={styles.chipRow}>
+                                {getSubcategories(form.category).map((sub) => (
+                                    <Pressable
+                                        key={sub}
+                                        style={[styles.chip, form.subcategory === sub && styles.chipActive]}
+                                        onPress={() => updateField('subcategory', form.subcategory === sub ? '' : sub)}
+                                    >
+                                        <Text style={[styles.chipText, form.subcategory === sub && styles.chipTextActive]}>
+                                            {sub}
+                                        </Text>
+                                    </Pressable>
+                                ))}
+                            </View>
+                        </>
+                    ) : (
+                        <Text style={styles.subcategoryHint}>Select a category first</Text>
+                    )}
 
                     <FieldLabel label="Why This Place" />
                     <TextInput
@@ -592,6 +609,14 @@ const styles = StyleSheet.create({
     },
     chipTextActive: {
         color: '#fff',
+    },
+    subcategoryHint: {
+        fontSize: 13, color: colors.textSecondary, fontFamily: fonts.body, fontStyle: 'italic', marginTop: 4,
+    },
+    legacySubcategoryWarning: {
+        fontSize: 12, color: '#f59e0b', fontFamily: fonts.bodySemiBold,
+        marginBottom: 6, padding: 8, backgroundColor: 'rgba(245,158,11,0.1)',
+        borderRadius: 6,
     },
     tagChip: {
         backgroundColor: colors.electricBlueLight,

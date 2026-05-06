@@ -1,5 +1,5 @@
-export const CATEGORIES = ['Food', 'Nightlife', 'Coffee', 'Outdoors', 'Wellness', 'Culture'] as const;
-export type Category = typeof CATEGORIES[number];
+export { CATEGORIES, SUBCATEGORIES_BY_CATEGORY, getSubcategories, inferSubcategoryFromGoogleTypes } from './taxonomy';
+export type { Category } from './taxonomy';
 
 export const PRICE_RANGES = ['$', '$$', '$$$', '$$$$'] as const;
 export const BEST_TIMES = ['morning', 'lunch', 'afternoon', 'dinner', 'late_night'] as const;
