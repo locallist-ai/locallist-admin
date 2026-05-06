@@ -254,7 +254,7 @@ export default function DashboardScreen() {
         if (isInitial) setPlansLoading(true);
         else setPlansLoadingMore(true);
 
-        const res = await api<PlansResponse>(`/admin/plans?source=curated&limit=${PAGE_SIZE}&offset=${offset}`);
+        const res = await api<PlansResponse>(`/admin/plans?isShowcase=true&limit=${PAGE_SIZE}&offset=${offset}`);
 
         if (res.data) {
             if (isInitial) {
