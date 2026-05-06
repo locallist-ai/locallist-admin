@@ -1,8 +1,12 @@
 import { auth } from './firebase';
 
 function getApiUrl(): string {
-    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-    return 'https://locallist-api-net-production.up.railway.app';
+    const url = process.env.EXPO_PUBLIC_API_URL;
+    if (url) return url;
+    throw new Error(
+        '[api] EXPO_PUBLIC_API_URL is not set. Add it to your .env file.\n' +
+        'Example: EXPO_PUBLIC_API_URL=http://localhost:5000',
+    );
 }
 
 const API_URL = getApiUrl();
@@ -21,9 +25,9 @@ const MAX_RETRIES = 1;
 
 export async function api<T>(
     path: string,
-    options: { method?: string; body?: any; headers?: Record<string, string> } = {},
+    options: { method?: string; body?: any; headers?: Record<string, string>; timeoutMs?: number } = {},
 ): Promise<ApiResult<T>> {
-    const { method = 'GET', body, headers = {} } = options;
+    const { method = 'GET', body, headers = {}, timeoutMs = TIMEOUT_MS } = options;
 
     // Get fresh Firebase JWT (auto-refreshed by Firebase SDK — no manual refresh needed here)
     const token = await auth.currentUser?.getIdToken();
@@ -38,7 +42,7 @@ export async function api<T>(
     let attempt = 0;
     while (attempt <= MAX_RETRIES) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
             const res = await fetch(`${API_URL}${path}`, {
                 method,

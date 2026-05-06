@@ -28,6 +28,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
+                // Domain check must happen before any backend interaction
+                if (!firebaseUser.email?.endsWith('@locallist.ai')) {
+                    await firebaseSignOut(auth);
+                    setUser(null);
+                    setToken(null);
+                    setIsLoading(false);
+                    return;
+                }
+
                 const idToken = await firebaseUser.getIdToken();
                 setUser(firebaseUser);
                 setToken(idToken);
@@ -43,6 +52,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return unsubscribe;
     }, []);
+
+    // Refresh the Firebase ID token every 50 min to prevent silent 401s after 1h expiry (H10)
+    useEffect(() => {
+        if (!user) return;
+        const interval = setInterval(async () => {
+            const refreshed = await user.getIdToken(true);
+            setToken(refreshed);
+        }, 50 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [user]);
 
     const signOut = async () => {
         await firebaseSignOut(auth);
