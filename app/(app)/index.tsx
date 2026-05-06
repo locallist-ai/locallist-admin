@@ -66,6 +66,9 @@ export default function DashboardScreen() {
     // Batch translate state
     const [translatingBatch, setTranslatingBatch] = useState(false);
 
+    // Reindex state
+    const [reindexing, setReindexing] = useState(false);
+
     // ─── Places logic ───
 
     const buildPlacesQuery = useCallback((status: StatusTab, limit: number, offset: number, category?: string | null) => {
@@ -332,6 +335,32 @@ export default function DashboardScreen() {
         );
     };
 
+    const handleReindex = async () => {
+        Alert.alert(
+            'Reindex Embeddings',
+            'This regenerates vector embeddings for all published places. Takes ~30s. Continue?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Reindex',
+                    onPress: async () => {
+                        setReindexing(true);
+                        const res = await api<{ reindexed: number; failed: number; total: number }>(
+                            '/admin/places/reindex-embeddings',
+                            { method: 'POST' }
+                        );
+                        setReindexing(false);
+                        if (res.data) {
+                            Alert.alert('Done', `Reindexed: ${res.data.reindexed}/${res.data.total}`);
+                        } else {
+                            Alert.alert('Error', `Reindex failed: ${res.error}`);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
     // ─── Render helpers ───
 
     const renderPlaceItem = ({ item }: { item: PlaceData }) => (
@@ -570,16 +599,28 @@ export default function DashboardScreen() {
 
                         {/* Batch translate action (published places only) */}
                         {activeTab === 'published' && (
-                            <Pressable
-                                style={[styles.batchTranslateBtn, translatingBatch && { opacity: 0.5 }]}
-                                onPress={handleTranslatePlacesBatch}
-                                disabled={translatingBatch}
-                            >
-                                {translatingBatch
-                                    ? <ActivityIndicator color="#fff" size="small" />
-                                    : <Text style={styles.batchTranslateBtnText}>Translate All Curated → ES</Text>
-                                }
-                            </Pressable>
+                            <View style={styles.batchActionsRow}>
+                                <Pressable
+                                    style={[styles.batchTranslateBtn, { flex: 1 }, translatingBatch && { opacity: 0.5 }]}
+                                    onPress={handleTranslatePlacesBatch}
+                                    disabled={translatingBatch}
+                                >
+                                    {translatingBatch
+                                        ? <ActivityIndicator color="#fff" size="small" />
+                                        : <Text style={styles.batchTranslateBtnText}>Translate → ES</Text>
+                                    }
+                                </Pressable>
+                                <Pressable
+                                    style={[styles.reindexBtn, reindexing && { opacity: 0.5 }]}
+                                    onPress={handleReindex}
+                                    disabled={reindexing}
+                                >
+                                    {reindexing
+                                        ? <ActivityIndicator color={colors.sunsetOrange} size="small" />
+                                        : <Text style={[styles.batchTranslateBtnText, { color: colors.sunsetOrange }]}>Reindex</Text>
+                                    }
+                                </Pressable>
+                            </View>
                         )}
 
                         {/* Places content */}
@@ -838,9 +879,17 @@ const styles = StyleSheet.create({
     loadMoreText: { color: colors.electricBlue, fontFamily: fonts.bodySemiBold, fontSize: 14 },
 
     // Batch translate
+    batchActionsRow: {
+        flexDirection: 'row', marginHorizontal: 20, marginBottom: spacing.sm, gap: spacing.sm,
+    },
     batchTranslateBtn: {
-        marginHorizontal: 20, marginBottom: spacing.sm, paddingVertical: spacing.sm,
+        paddingVertical: spacing.sm,
         borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.electricBlue,
+        alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm,
+    },
+    reindexBtn: {
+        paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.sunsetOrange,
         alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm,
     },
     batchTranslateBtnText: { color: colors.electricBlue, fontFamily: fonts.bodySemiBold, fontSize: 13 },
