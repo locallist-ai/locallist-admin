@@ -28,6 +28,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
+                // Domain check must happen before any backend interaction
+                if (!firebaseUser.email?.endsWith('@locallist.ai')) {
+                    await firebaseSignOut(auth);
+                    setUser(null);
+                    setToken(null);
+                    setIsLoading(false);
+                    return;
+                }
+
                 const idToken = await firebaseUser.getIdToken();
                 setUser(firebaseUser);
                 setToken(idToken);
