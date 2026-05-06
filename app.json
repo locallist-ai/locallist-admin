@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "LocalList.Admin",
+    "name": "LocalList Admin",
     "slug": "LocalListAdmin",
     "version": "1.0.0",
     "main": "expo-router/entry",
