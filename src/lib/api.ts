@@ -25,9 +25,9 @@ const MAX_RETRIES = 1;
 
 export async function api<T>(
     path: string,
-    options: { method?: string; body?: any; headers?: Record<string, string> } = {},
+    options: { method?: string; body?: any; headers?: Record<string, string>; timeoutMs?: number } = {},
 ): Promise<ApiResult<T>> {
-    const { method = 'GET', body, headers = {} } = options;
+    const { method = 'GET', body, headers = {}, timeoutMs = TIMEOUT_MS } = options;
 
     // Get fresh Firebase JWT (auto-refreshed by Firebase SDK — no manual refresh needed here)
     const token = await auth.currentUser?.getIdToken();
@@ -42,7 +42,7 @@ export async function api<T>(
     let attempt = 0;
     while (attempt <= MAX_RETRIES) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
             const res = await fetch(`${API_URL}${path}`, {
                 method,

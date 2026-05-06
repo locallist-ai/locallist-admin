@@ -295,7 +295,7 @@ export default function DashboardScreen() {
                         setTranslatingBatch(true);
                         const res = await api<{ translated: number; failed: number; skipped: number; remaining: number }>(
                             '/admin/places/translate-batch',
-                            { method: 'POST' }
+                            { method: 'POST', timeoutMs: 120_000 }
                         );
                         setTranslatingBatch(false);
                         if (res.data) {
@@ -321,7 +321,7 @@ export default function DashboardScreen() {
                         setTranslatingBatch(true);
                         const res = await api<{ translated: number; failed: number; skipped: number; remaining: number }>(
                             '/admin/plans/translate-batch',
-                            { method: 'POST' }
+                            { method: 'POST', timeoutMs: 120_000 }
                         );
                         setTranslatingBatch(false);
                         if (res.data) {
