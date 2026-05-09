@@ -1,15 +1,19 @@
-import { auth } from './firebase';
+import { getFirebaseAuth } from './firebase';
+
+let cachedApiUrl: string | undefined;
 
 function getApiUrl(): string {
+    if (cachedApiUrl) return cachedApiUrl;
     const url = process.env.EXPO_PUBLIC_API_URL;
-    if (url) return url;
-    throw new Error(
-        '[api] EXPO_PUBLIC_API_URL is not set. Add it to your .env file.\n' +
-        'Example: EXPO_PUBLIC_API_URL=http://localhost:5000',
-    );
+    if (!url) {
+        throw new Error(
+            '[api] EXPO_PUBLIC_API_URL is not set. Add it to your .env file.\n' +
+            'Example: EXPO_PUBLIC_API_URL=http://localhost:5000',
+        );
+    }
+    cachedApiUrl = url;
+    return cachedApiUrl;
 }
-
-const API_URL = getApiUrl();
 
 // ─── API client ──────────────────────────────────────────
 
@@ -29,8 +33,8 @@ export async function api<T>(
 ): Promise<ApiResult<T>> {
     const { method = 'GET', body, headers = {}, timeoutMs = TIMEOUT_MS, signal: externalSignal } = options;
 
-    // Get fresh Firebase JWT (auto-refreshed by Firebase SDK — no manual refresh needed here)
-    const token = await auth.currentUser?.getIdToken();
+    const apiUrl = getApiUrl();
+    const token = await getFirebaseAuth().currentUser?.getIdToken();
 
     const requestHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -46,7 +50,7 @@ export async function api<T>(
         externalSignal?.addEventListener('abort', () => controller.abort());
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
-            const res = await fetch(`${API_URL}${path}`, {
+            const res = await fetch(`${apiUrl}${path}`, {
                 method,
                 headers: requestHeaders,
                 body: body ? JSON.stringify(body) : undefined,

@@ -1,33 +1,42 @@
-import { initializeApp, getApps } from 'firebase/app';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 // @ts-ignore — getReactNativePersistence types live under a subpath not resolved by tsc
 import { getReactNativePersistence, initializeAuth } from 'firebase/auth';
 import { Platform } from 'react-native';
 
-const firebaseConfig = {
-    apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-};
+let cachedAuth: Auth | undefined;
 
-// Initialize Firebase (avoid re-init on hot reload)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+export function getFirebaseAuth(): Auth {
+    if (cachedAuth) return cachedAuth;
 
-// Use AsyncStorage persistence on mobile, default (indexedDB) on web
-let auth: Auth;
-if (Platform.OS === 'web') {
-    auth = getAuth(app);
-} else {
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-        auth = initializeAuth(app, {
-            persistence: getReactNativePersistence(AsyncStorage),
-        });
-    } catch {
-        auth = getAuth(app);
+    const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
+    const authDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN;
+    const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID;
+
+    if (!apiKey || !authDomain || !projectId) {
+        const missing = ['EXPO_PUBLIC_FIREBASE_API_KEY', 'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN', 'EXPO_PUBLIC_FIREBASE_PROJECT_ID']
+            .filter(k => !process.env[k])
+            .join(', ');
+        throw new Error(`Firebase env vars missing: ${missing}`);
     }
-}
 
-export { auth };
-export default app;
+    const app: FirebaseApp = getApps().length === 0
+        ? initializeApp({ apiKey, authDomain, projectId })
+        : getApps()[0];
+
+    if (Platform.OS === 'web') {
+        cachedAuth = getAuth(app);
+    } else {
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            cachedAuth = initializeAuth(app, {
+                persistence: getReactNativePersistence(AsyncStorage),
+            });
+        } catch {
+            cachedAuth = getAuth(app);
+        }
+    }
+
+    return cachedAuth;
+}

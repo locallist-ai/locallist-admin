@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { colors } from '../src/lib/theme';
 
 function RootLayoutNav() {
@@ -47,9 +48,11 @@ export default function RootLayout() {
     return (
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bgMain }}>
             <StatusBar style="dark" />
-            <AuthProvider>
-                <RootLayoutNav />
-            </AuthProvider>
+            <ErrorBoundary>
+                <AuthProvider>
+                    <RootLayoutNav />
+                </AuthProvider>
+            </ErrorBoundary>
         </GestureHandlerRootView>
     );
 }
