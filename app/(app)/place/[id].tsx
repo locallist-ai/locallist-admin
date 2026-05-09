@@ -214,7 +214,7 @@ export default function PlaceEditScreen() {
                         <>
                             {form.subcategory && !getSubcategories(form.category).includes(form.subcategory) && (
                                 <Text style={styles.legacySubcategoryWarning}>
-                                    Legacy: "{form.subcategory}" — pick canonical below
+                                    Legacy: "{form.subcategory}" - pick canonical below
                                 </Text>
                             )}
                             <View style={styles.chipRow}>
@@ -453,7 +453,7 @@ export default function PlaceEditScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
 
-                            <FieldLabel label="Best For (ES) — comma separated" />
+                            <FieldLabel label="Best For (ES), comma separated" />
                             <TextInput
                                 style={styles.input}
                                 value={form.bestForEs?.join(', ') ?? ''}
@@ -462,7 +462,7 @@ export default function PlaceEditScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
 
-                            <FieldLabel label="Suitable For (ES) — comma separated" />
+                            <FieldLabel label="Suitable For (ES), comma separated" />
                             <TextInput
                                 style={styles.input}
                                 value={form.suitableForEs?.join(', ') ?? ''}
