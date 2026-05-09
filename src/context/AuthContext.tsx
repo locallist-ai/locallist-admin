@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { onAuthStateChanged, signOut as firebaseSignOut, User } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { getFirebaseAuth } from '../lib/firebase';
 
 interface AuthState {
     user: User | null;
@@ -26,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        const auth = getFirebaseAuth();
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
                 // Domain check must happen before any backend interaction
@@ -64,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [user]);
 
     const signOut = async () => {
-        await firebaseSignOut(auth);
+        await firebaseSignOut(getFirebaseAuth());
     };
 
     return (

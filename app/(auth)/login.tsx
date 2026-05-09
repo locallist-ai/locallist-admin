@@ -5,7 +5,7 @@ import {
     signInWithPopup,
     GoogleAuthProvider,
 } from 'firebase/auth';
-import { auth } from '../../src/lib/firebase';
+import { getFirebaseAuth } from '../../src/lib/firebase';
 import { colors, fonts, spacing, borderRadius } from '../../src/lib/theme';
 
 // Google Sign-In native SDK (mobile only)
@@ -33,6 +33,7 @@ export default function LoginScreen() {
             setLoading(true);
             setError(null);
 
+            const auth = getFirebaseAuth();
             if (Platform.OS === 'web') {
                 // Web: Firebase popup flow
                 const provider = new GoogleAuthProvider();
