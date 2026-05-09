@@ -1,7 +1,7 @@
-import { Slot, useRouter, useSegments } from 'expo-router';
-import { useEffect } from 'react';
+import { Slot, Redirect, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { colors } from '../src/lib/theme';
@@ -9,28 +9,16 @@ import { colors } from '../src/lib/theme';
 function RootLayoutNav() {
     const { token, isLoading } = useAuth();
     const segments = useSegments();
-    const router = useRouter();
-
-    useEffect(() => {
-        if (isLoading) return;
-
-        const inAuthGroup = segments[0] === '(auth)';
-
-        if (!token && !inAuthGroup) {
-            // Redirect to the login page.
-            router.replace('/(auth)/login');
-        } else if (token && inAuthGroup) {
-            // Redirect away from the login page.
-            router.replace('/(app)');
-        }
-    }, [token, isLoading, segments]);
 
     if (isLoading) return null;
 
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!token && !inAuthGroup) return <Redirect href="/(auth)/login" />;
+    if (token && inAuthGroup) return <Redirect href="/(app)" />;
+
     return <Slot />;
 }
-
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
     const [fontsLoaded] = useFonts({
