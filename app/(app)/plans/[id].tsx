@@ -16,6 +16,7 @@ import type { PlanData, PlanStopData } from '../../../src/types/plan';
 import type { PlaceData } from '../../../src/types/place';
 import PlaceSearch from '../../../src/components/PlaceSearch';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
+import { MAX_STOPS_PER_DAY } from '../../../src/lib/constants';
 
 const PLAN_TYPES = ['foodie', 'culture', 'adventure', 'nightlife', 'wellness', 'family', 'custom'] as const;
 const DURATION_OPTIONS = [1, 2, 3, 4, 5] as const;
@@ -194,6 +195,10 @@ export default function PlanEditScreen() {
 
     const handleAddStop = (place: PlaceData) => {
         const dayStops = stops.filter(s => s.dayNumber === addDay);
+        if (dayStops.length >= MAX_STOPS_PER_DAY) {
+            Alert.alert('Límite alcanzado', `Máximo ${MAX_STOPS_PER_DAY} places por día.`);
+            return;
+        }
         const newStop: LocalStop = {
             placeId: place.id,
             placeName: place.name,
