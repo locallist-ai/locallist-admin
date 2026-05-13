@@ -196,7 +196,7 @@ export default function PlanEditScreen() {
     const handleAddStop = (place: PlaceData) => {
         const dayStops = stops.filter(s => s.dayNumber === addDay);
         if (dayStops.length >= MAX_STOPS_PER_DAY) {
-            Alert.alert('Límite alcanzado', `Máximo ${MAX_STOPS_PER_DAY} places por día.`);
+            Alert.alert('Limit reached', `Maximum ${MAX_STOPS_PER_DAY} places per day.`);
             return;
         }
         const newStop: LocalStop = {
