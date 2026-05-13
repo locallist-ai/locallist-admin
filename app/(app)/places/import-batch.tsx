@@ -50,7 +50,7 @@ const STATUSES = ['in_review', 'published', 'draft'] as const;
 
 function parseUrlsFromText(text: string): string[] {
     return text
-        .split(/[\n,;]+/)
+        .split(/\r?\n+/)
         .map(u => u.trim())
         .filter(u => u.length > 0);
 }
@@ -199,7 +199,7 @@ export default function ImportBatchScreen() {
                             value={urlText}
                             onChangeText={setUrlText}
                             placeholder={
-                                'https://maps.app.goo.gl/abc123\nhttps://www.google.com/maps/place/...\nChIJN1t_tDeuEmsRUsoyG83frY4'
+                                'https://www.google.com/maps/place/...\nChIJN1t_tDeuEmsRUsoyG83frY4'
                             }
                             placeholderTextColor={colors.textSecondary}
                             multiline
@@ -208,6 +208,9 @@ export default function ImportBatchScreen() {
                             autoCapitalize="none"
                             autoCorrect={false}
                         />
+                        <Text style={styles.hint}>
+                            One URL per line. Use canonical URLs (google.com/maps/place/...) or Place IDs (ChIJ...). Short links (maps.app.goo.gl) don't work — open them in the browser first and copy the full URL.
+                        </Text>
                         {activeUrls.length > 0 && (
                             <Text style={styles.hint}>{activeUrls.length} URLs detected</Text>
                         )}
