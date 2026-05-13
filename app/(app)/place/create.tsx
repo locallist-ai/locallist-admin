@@ -264,10 +264,16 @@ export default function PlaceCreateScreen() {
                         {PRICE_RANGES.map((pr) => (
                             <Pressable
                                 key={pr}
-                                style={[styles.chip, form.priceRange === pr && styles.chipActive]}
+                                style={[
+                                    styles.chip,
+                                    form.priceRange === pr && (pr === 'FREE' ? styles.chipFree : styles.chipActive),
+                                ]}
                                 onPress={() => updateField('priceRange', pr)}
                             >
-                                <Text style={[styles.chipText, form.priceRange === pr && styles.chipTextActive]}>
+                                <Text style={[
+                                    styles.chipText,
+                                    form.priceRange === pr && (pr === 'FREE' ? styles.chipTextFree : styles.chipTextActive),
+                                ]}>
                                     {pr}
                                 </Text>
                             </Pressable>
@@ -371,8 +377,10 @@ const styles = StyleSheet.create({
         borderWidth: 1, borderColor: colors.borderColor,
     },
     chipActive: { backgroundColor: colors.electricBlue, borderColor: colors.electricBlue },
+    chipFree: { backgroundColor: colors.successEmerald, borderColor: colors.successEmerald },
     chipText: { fontSize: 13, color: colors.textSecondary, fontFamily: fonts.bodySemiBold },
     chipTextActive: { color: '#fff' },
+    chipTextFree: { color: '#fff' },
     subcategoryHint: { fontSize: 13, color: colors.textSecondary, fontFamily: fonts.body, fontStyle: 'italic', marginTop: 4 },
     tagChip: {
         backgroundColor: colors.electricBlueLight, paddingHorizontal: 12,

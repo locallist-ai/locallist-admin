@@ -6,7 +6,7 @@ export type Category = typeof CATEGORIES[number];
 
 export const SUBCATEGORIES_BY_CATEGORY: Record<string, string[]> = {
     Food:     ['Ramen', 'Sushi', 'Italian', 'Pizza', 'Mexican', 'Tacos', 'Cuban', 'Latin American', 'American', 'Steakhouse', 'Seafood', 'Mediterranean', 'Asian Fusion', 'Brunch', 'Bakery', 'Vegan'],
-    Nightlife: ['Cocktail Bar', 'Speakeasy', 'Rooftop Bar', 'Wine Bar', 'Sports Bar', 'Beer Bar', 'Nightclub', 'Live Music'],
+    Nightlife: ['Pub', 'Cocktail Bar', 'Speakeasy', 'Rooftop Bar', 'Wine Bar', 'Sports Bar', 'Beer Bar', 'Nightclub', 'Live Music'],
     Coffee:   ['Specialty Coffee', 'Espresso Bar', 'Bakery Café', 'Tea House', 'Juice Bar', 'Dessert'],
     Outdoors: ['Beach', 'Park', 'Garden', 'Trail', 'Marina', 'Pier', 'Waterfront', 'Dog Park'],
     Wellness: ['Spa', 'Pilates', 'Yoga', 'Gym', 'Sauna', 'IV Therapy', 'Massage', 'Salt Cave'],
@@ -37,6 +37,7 @@ export const GOOGLE_TYPES_TO_SUBCATEGORY: Record<string, string> = {
     vegan_restaurant: 'Vegan',
     cuban_restaurant: 'Cuban',
     latin_american_restaurant: 'Latin American',
+    pub: 'Pub',
     bar: 'Cocktail Bar',
     cocktail_bar: 'Cocktail Bar',
     wine_bar: 'Wine Bar',

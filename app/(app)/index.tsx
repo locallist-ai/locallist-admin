@@ -487,18 +487,20 @@ export default function DashboardScreen() {
                                 if (Platform.OS === 'ios') {
                                     ActionSheetIOS.showActionSheetWithOptions(
                                         {
-                                            options: ['Cancel', 'Create manually', 'Import from Google'],
+                                            options: ['Cancel', 'Create manually', 'Import from Google', 'Import batch (links/CSV)'],
                                             cancelButtonIndex: 0,
                                         },
                                         (idx) => {
                                             if (idx === 1) router.push('/place/create');
                                             else if (idx === 2) router.push('/places/import-google');
+                                            else if (idx === 3) router.push('/places/import-batch');
                                         }
                                     );
                                 } else {
                                     Alert.alert('Add place', '', [
                                         { text: 'Create manually', onPress: () => router.push('/place/create') },
                                         { text: 'Import from Google', onPress: () => router.push('/places/import-google') },
+                                        { text: 'Import batch (links/CSV)', onPress: () => router.push('/places/import-batch') },
                                         { text: 'Cancel', style: 'cancel' },
                                     ]);
                                 }

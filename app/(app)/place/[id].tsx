@@ -18,7 +18,7 @@ import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 import { getDirtyFields as computeDirtyFields } from '../../../src/utils/getDirtyFields';
 import { CATEGORIES, SUBCATEGORIES_BY_CATEGORY, getSubcategories } from '../../../src/lib/constants';
 
-const PRICE_RANGES = ['$', '$$', '$$$', '$$$$'] as const;
+const PRICE_RANGES = ['FREE', '$', '$$', '$$$', '$$$$'] as const;
 const BEST_TIMES = ['morning', 'lunch', 'afternoon', 'dinner', 'late_night'] as const;
 
 export default function PlaceEditScreen() {
@@ -338,11 +338,17 @@ export default function PlaceEditScreen() {
                         {PRICE_RANGES.map((pr) => (
                             <Pressable
                                 key={pr}
-                                style={[styles.chip, form.priceRange === pr && styles.chipActive]}
+                                style={[
+                                    styles.chip,
+                                    form.priceRange === pr && (pr === 'FREE' ? styles.chipFree : styles.chipActive),
+                                ]}
                                 onPress={() => updateField('priceRange', pr)}
                             >
                                 <Text
-                                    style={[styles.chipText, form.priceRange === pr && styles.chipTextActive]}
+                                    style={[
+                                        styles.chipText,
+                                        form.priceRange === pr && (pr === 'FREE' ? styles.chipTextFree : styles.chipTextActive),
+                                    ]}
                                 >
                                     {pr}
                                 </Text>
@@ -602,12 +608,19 @@ const styles = StyleSheet.create({
         backgroundColor: colors.electricBlue,
         borderColor: colors.electricBlue,
     },
+    chipFree: {
+        backgroundColor: colors.successEmerald,
+        borderColor: colors.successEmerald,
+    },
     chipText: {
         fontSize: 13,
         color: colors.textSecondary,
         fontFamily: fonts.bodySemiBold,
     },
     chipTextActive: {
+        color: '#fff',
+    },
+    chipTextFree: {
         color: '#fff',
     },
     subcategoryHint: {
