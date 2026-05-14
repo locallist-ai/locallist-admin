@@ -20,9 +20,10 @@ interface SwipeCardProps {
     onApprove: () => void;
     onReject: () => void;
     showButtons?: boolean;
+    onPostpone?: () => void;
 }
 
-export default function SwipeCard({ place, isTop, onApprove, onReject, showButtons = false }: SwipeCardProps) {
+export default function SwipeCard({ place, isTop, onApprove, onReject, showButtons = false, onPostpone }: SwipeCardProps) {
     const { width, height } = useWindowDimensions();
     const insets = useSafeAreaInsets();
     const router = useRouter();
@@ -156,7 +157,7 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
     );
 
     return (
-        <View style={showButtons ? styles.cardWithButtons : undefined}>
+        <View style={(showButtons || onPostpone) ? styles.cardWithButtons : undefined}>
             <GestureDetector gesture={composedGesture}>
                 {cardContent}
             </GestureDetector>
@@ -169,6 +170,11 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
                         <Text style={styles.approveButtonText}>Approve</Text>
                     </Pressable>
                 </View>
+            )}
+            {isTop && onPostpone && (
+                <Pressable style={styles.postponeButton} onPress={onPostpone}>
+                    <Text style={styles.postponeButtonText}>Postpone</Text>
+                </Pressable>
             )}
         </View>
     );
@@ -315,5 +321,18 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontFamily: fonts.bodyBold,
         fontSize: 15,
+    },
+    postponeButton: {
+        marginTop: 12,
+        paddingHorizontal: 24,
+        paddingVertical: 10,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.borderColor,
+    },
+    postponeButtonText: {
+        color: colors.textSecondary,
+        fontFamily: fonts.bodySemiBold,
+        fontSize: 14,
     },
 });
