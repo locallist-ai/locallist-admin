@@ -71,6 +71,9 @@ export default function DashboardScreen() {
     // Reindex state
     const [reindexing, setReindexing] = useState(false);
 
+    // Refresh state
+    const [refreshing, setRefreshing] = useState(false);
+
     // ─── Places logic ───
 
     const buildPlacesQuery = useCallback((status: StatusTab, limit: number, offset: number, category?: string | null) => {
@@ -122,9 +125,8 @@ export default function DashboardScreen() {
         });
     }, []);
 
-    // Fetch counts (respects city filter)
-    useEffect(() => {
-        Promise.all(
+    const loadCounts = useCallback(() => {
+        return Promise.all(
             TABS.map(async (tab) => {
                 const res = await api<PlacesResponse>(buildPlacesQuery(tab.key, 1, 0));
                 if (res.data) {
@@ -133,6 +135,11 @@ export default function DashboardScreen() {
             })
         );
     }, [buildPlacesQuery]);
+
+    // Fetch counts (respects city filter)
+    useEffect(() => {
+        loadCounts();
+    }, [loadCounts]);
 
     useEffect(() => {
         if (mode === 'places') loadPlaces(activeTab);
@@ -182,6 +189,23 @@ export default function DashboardScreen() {
     const handleRejectStart = (placeId: string) => {
         const place = places.find((p) => p.id === placeId);
         if (place) setRejectionTarget(place);
+    };
+
+    const handlePostpone = async (placeId: string) => {
+        const idx = places.findIndex((p) => p.id === placeId);
+        if (idx < 0) return;
+        const item = places[idx];
+        setPlaces((prev) => [item, ...prev.filter((p) => p.id !== placeId)]);
+
+        const res = await api(`/admin/places/${placeId}/postpone`, { method: 'PATCH' });
+        if (res.error) {
+            setPlaces((prev) => {
+                const next = prev.filter((p) => p.id !== placeId);
+                next.splice(Math.min(idx, next.length), 0, item);
+                return next;
+            });
+            Alert.alert('Error', `Failed to postpone: ${res.error}`);
+        }
     };
 
     const handlePlaceStatusChange = async (placeId: string, newStatus: StatusTab, reason?: string) => {
@@ -252,6 +276,27 @@ export default function DashboardScreen() {
         }
     };
 
+    const handleDeletePlace = (placeId: string) => {
+        Alert.alert(
+            'Delete Place',
+            'This will permanently delete the place. This cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete', style: 'destructive', onPress: async () => {
+                        const res = await api(`/admin/places/${placeId}?hard=true`, { method: 'DELETE' });
+                        if (res.error) {
+                            Alert.alert('Error', (res.errorBody as any)?.error ?? res.error);
+                        } else {
+                            setPlaces((prev) => prev.filter((p) => p.id !== placeId));
+                            setCounts((prev) => ({ ...prev, rejected: Math.max(0, prev.rejected - 1) }));
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
     // ─── Plans logic ───
 
     const loadPlans = useCallback(async (offset = 0) => {
@@ -283,6 +328,27 @@ export default function DashboardScreen() {
     const handlePlansLoadMore = () => {
         if (plansLoadingMore || plans.length >= plansTotal) return;
         loadPlans(plans.length);
+    };
+
+    const handleDeletePlan = (planId: string) => {
+        Alert.alert(
+            'Delete Plan',
+            'This will permanently delete the plan. This cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete', style: 'destructive', onPress: async () => {
+                        const res = await api(`/admin/plans/${planId}`, { method: 'DELETE' });
+                        if (res.error) {
+                            Alert.alert('Error', `Failed to delete: ${res.error}`);
+                        } else {
+                            setPlans((prev) => prev.filter((p) => p.id !== planId));
+                            setPlansTotal((prev) => Math.max(0, prev - 1));
+                        }
+                    },
+                },
+            ]
+        );
     };
 
     const runBatchTranslateLoop = async (
@@ -383,6 +449,19 @@ export default function DashboardScreen() {
         );
     };
 
+    const handleRefresh = async () => {
+        setRefreshing(true);
+        const cityFetch = api<{ cities: string[] }>('/admin/places/cities').then((res) => {
+            if (res.data) setCities(res.data.cities);
+        });
+        if (mode === 'places') {
+            await Promise.all([cityFetch, loadCounts(), loadPlaces(activeTab)]);
+        } else {
+            await Promise.all([cityFetch, loadPlans()]);
+        }
+        setRefreshing(false);
+    };
+
     // ─── Render helpers ───
 
     const renderPlaceItem = ({ item }: { item: PlaceData }) => (
@@ -419,12 +498,20 @@ export default function DashboardScreen() {
                             <Text style={styles.actionBtnRejectText}>Reject</Text>
                         </Pressable>
                     ) : (
-                        <Pressable
-                            style={styles.actionBtnPublish}
-                            onPress={() => handlePlaceStatusChange(item.id, 'published')}
-                        >
-                            <Text style={styles.actionBtnPublishText}>Publish</Text>
-                        </Pressable>
+                        <>
+                            <Pressable
+                                style={[styles.actionBtnPublish, styles.actionBtnBorderRight]}
+                                onPress={() => handlePlaceStatusChange(item.id, 'published')}
+                            >
+                                <Text style={styles.actionBtnPublishText}>Publish</Text>
+                            </Pressable>
+                            <Pressable
+                                style={styles.actionBtnDelete}
+                                onPress={() => handleDeletePlace(item.id)}
+                            >
+                                <Text style={styles.actionBtnDeleteText}>Delete</Text>
+                            </Pressable>
+                        </>
                     )}
                 </View>
             )}
@@ -453,16 +540,22 @@ export default function DashboardScreen() {
                 </View>
                 <Text style={styles.listChevron}>›</Text>
             </Pressable>
-            {item.isPublic && (
-                <View style={styles.itemActions}>
+            <View style={styles.itemActions}>
+                {item.isPublic && (
                     <Pressable
-                        style={styles.actionBtnReject}
+                        style={[styles.actionBtnReject, styles.actionBtnBorderRight]}
                         onPress={() => handlePlanUnpublish(item.id)}
                     >
                         <Text style={styles.actionBtnRejectText}>Unpublish</Text>
                     </Pressable>
-                </View>
-            )}
+                )}
+                <Pressable
+                    style={styles.actionBtnDelete}
+                    onPress={() => handleDeletePlan(item.id)}
+                >
+                    <Text style={styles.actionBtnDeleteText}>Delete</Text>
+                </Pressable>
+            </View>
         </View>
     );
 
@@ -477,6 +570,16 @@ export default function DashboardScreen() {
                         resizeMode="contain"
                     />
                     <View style={styles.headerRight}>
+                        <Pressable
+                            style={[styles.refreshBtn, refreshing && { opacity: 0.5 }]}
+                            onPress={handleRefresh}
+                            disabled={refreshing}
+                        >
+                            {refreshing
+                                ? <ActivityIndicator color={colors.electricBlue} size="small" />
+                                : <Text style={styles.refreshBtnText}>⟳</Text>
+                            }
+                        </Pressable>
                         <Pressable
                             style={styles.createBtn}
                             onPress={() => {
@@ -666,6 +769,7 @@ export default function DashboardScreen() {
                                             isTop={index === visible.length - 1}
                                             onApprove={() => handleApprove(place.id)}
                                             onReject={() => handleRejectStart(place.id)}
+                                            onPostpone={() => handlePostpone(place.id)}
                                             showButtons={isDesktop}
                                         />
                                     ))
@@ -792,6 +896,12 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.sm, borderRadius: borderRadius.sm,
     },
     createBtnText: { color: '#fff', fontFamily: fonts.bodySemiBold, fontSize: 14 },
+    refreshBtn: {
+        padding: spacing.sm, borderRadius: borderRadius.sm,
+        borderWidth: 1, borderColor: colors.electricBlue,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    refreshBtnText: { color: colors.electricBlue, fontFamily: fonts.bodySemiBold, fontSize: 18, lineHeight: 20 },
     logoutBtn: { padding: spacing.sm },
     logoutText: { color: colors.error, fontFamily: fonts.bodySemiBold },
 
@@ -894,6 +1004,13 @@ const styles = StyleSheet.create({
         flex: 1, paddingVertical: spacing.sm, alignItems: 'center',
     },
     actionBtnPublishText: { fontSize: 13, fontFamily: fonts.bodySemiBold, color: colors.successEmerald },
+    actionBtnBorderRight: {
+        borderRightWidth: 1, borderRightColor: colors.borderColor,
+    },
+    actionBtnDelete: {
+        flex: 1, paddingVertical: spacing.sm, alignItems: 'center',
+    },
+    actionBtnDeleteText: { fontSize: 13, fontFamily: fonts.bodySemiBold, color: colors.error },
 
     // Plan-specific
     planIcon: {
