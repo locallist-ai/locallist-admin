@@ -71,6 +71,9 @@ export default function DashboardScreen() {
     // Reindex state
     const [reindexing, setReindexing] = useState(false);
 
+    // Backfill opening hours state
+    const [backfillingHours, setBackfillingHours] = useState(false);
+
     // Refresh state
     const [refreshing, setRefreshing] = useState(false);
 
@@ -449,6 +452,32 @@ export default function DashboardScreen() {
         );
     };
 
+    const handleBackfillHours = async () => {
+        Alert.alert(
+            'Backfill Opening Hours',
+            'Fetches opening hours from Google for all places missing them. May take a while. Continue?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Backfill',
+                    onPress: async () => {
+                        setBackfillingHours(true);
+                        const res = await api<{ backfilled: number; failed: number; total: number }>(
+                            '/admin/places/backfill-opening-hours?onlyMissing=true&limit=200',
+                            { method: 'POST' }
+                        );
+                        setBackfillingHours(false);
+                        if (res.data) {
+                            Alert.alert('Done', `Backfilled: ${res.data.backfilled}/${res.data.total} (${res.data.failed} failed)`);
+                        } else {
+                            Alert.alert('Error', `Backfill failed: ${res.error}`);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
     const handleRefresh = async () => {
         setRefreshing(true);
         const cityFetch = api<{ cities: string[] }>('/admin/places/cities').then((res) => {
@@ -742,6 +771,16 @@ export default function DashboardScreen() {
                                     {reindexing
                                         ? <ActivityIndicator color={colors.sunsetOrange} size="small" />
                                         : <Text style={[styles.batchTranslateBtnText, { color: colors.sunsetOrange }]}>Reindex</Text>
+                                    }
+                                </Pressable>
+                                <Pressable
+                                    style={[styles.reindexBtn, backfillingHours && { opacity: 0.5 }]}
+                                    onPress={handleBackfillHours}
+                                    disabled={backfillingHours}
+                                >
+                                    {backfillingHours
+                                        ? <ActivityIndicator color={colors.electricBlue} size="small" />
+                                        : <Text style={[styles.batchTranslateBtnText, { color: colors.electricBlue }]}>Hours</Text>
                                     }
                                 </Pressable>
                             </View>
