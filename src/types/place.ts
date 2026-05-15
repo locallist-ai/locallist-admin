@@ -22,6 +22,7 @@ export interface PlaceData {
     status?: string;
     rejectionReason?: string;
     aiVibeScore?: number;
+    visitDurationMin?: number | null;
     flags?: string[];
     createdAt?: string;
     updatedAt?: string;
