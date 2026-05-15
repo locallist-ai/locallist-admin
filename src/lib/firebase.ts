@@ -3,25 +3,23 @@ import { getAuth, Auth } from 'firebase/auth';
 // @ts-ignore — getReactNativePersistence types live under a subpath not resolved by tsc
 import { getReactNativePersistence, initializeAuth } from 'firebase/auth';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 let cachedAuth: Auth | undefined;
 
 export function getFirebaseAuth(): Auth {
     if (cachedAuth) return cachedAuth;
 
-    const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
-    const authDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN;
-    const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID;
+    const fb = Constants.expoConfig?.extra?.firebase as
+        | { apiKey: string; authDomain: string; projectId: string }
+        | undefined;
 
-    if (!apiKey || !authDomain || !projectId) {
-        const missing = ['EXPO_PUBLIC_FIREBASE_API_KEY', 'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN', 'EXPO_PUBLIC_FIREBASE_PROJECT_ID']
-            .filter(k => !process.env[k])
-            .join(', ');
-        throw new Error(`Firebase env vars missing: ${missing}`);
+    if (!fb?.apiKey || !fb?.authDomain || !fb?.projectId) {
+        throw new Error('Firebase config missing in expoConfig.extra — check app.config.ts and GoogleService-Info.plist');
     }
 
     const app: FirebaseApp = getApps().length === 0
-        ? initializeApp({ apiKey, authDomain, projectId })
+        ? initializeApp(fb)
         : getApps()[0];
 
     if (Platform.OS === 'web') {
