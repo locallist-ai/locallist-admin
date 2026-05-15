@@ -355,6 +355,16 @@ export default function PlaceEditScreen() {
                             </Pressable>
                         ))}
                     </View>
+
+                    <FieldLabel label="Visit Duration (min) — overrides category default" />
+                    <TextInput
+                        style={styles.input}
+                        value={form.visitDurationMin != null ? form.visitDurationMin.toString() : ''}
+                        onChangeText={(v) => updateField('visitDurationMin', v ? parseInt(v, 10) || null : null)}
+                        keyboardType="number-pad"
+                        placeholder="Leave blank to use category default"
+                        placeholderTextColor={colors.textSecondary}
+                    />
                 </View>
 
                 {/* Section: Photos */}
