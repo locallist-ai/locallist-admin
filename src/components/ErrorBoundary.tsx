@@ -14,7 +14,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
         if (this.state.error) {
             return (
                 <View style={styles.container}>
-                    <Text style={styles.title}>Error de configuración</Text>
+                    <Text style={styles.title}>Configuration error</Text>
                     <Text style={styles.message}>{this.state.error.message}</Text>
                 </View>
             );

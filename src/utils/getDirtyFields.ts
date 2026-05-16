@@ -7,9 +7,9 @@ export const PLACE_EDITABLE_KEYS: (keyof PlaceData)[] = [
     'photos', 'googlePlaceId', 'source', 'sourceUrl',
 ];
 
-// Claves numéricas donde el backend puede devolver string por drift de DTOs.
-// Coaccionamos a Number antes de comparar para evitar PATCHes espurios como
-// "40.4238" (string legacy) vs 40.4238 (number del input parseFloat).
+// Numeric keys where the backend may return a string due to DTO drift.
+// Coerce to Number before comparing to avoid spurious PATCHes like
+// "40.4238" (legacy string) vs 40.4238 (number from parseFloat).
 const NUMERIC_KEYS = new Set<keyof PlaceData>(['latitude', 'longitude']);
 
 export function getDirtyFields(

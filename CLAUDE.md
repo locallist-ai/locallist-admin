@@ -11,6 +11,10 @@ When the user says "admin", "erp", "admin app", they mean this project (`LocalLi
 | **Auth** | Firebase / Google Identity (locked to `@locallist.ai` domain) |
 | **Purpose** | Internal tool for curators to review places ingested by AI/Data pipelines. |
 
+## Firebase Config
+
+Firebase config del SDK JS viene de `app.config.ts` que parsea `GoogleService-Info.plist` con `plutil` en build time. **No** de `EXPO_PUBLIC_FIREBASE_*` env vars. Para actualizar la config de Firebase, reemplazar el plist y reconstruir.
+
 ## Running Locally
 
 ```bash
