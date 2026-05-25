@@ -11,6 +11,7 @@ import {
     ActionSheetIOS,
     Platform,
     Modal,
+    TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../../src/lib/api';
@@ -46,6 +47,8 @@ export default function DashboardScreen() {
     const [selectedCity, setSelectedCity] = useState<string | null>(null);
     const [cities, setCities] = useState<string[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
 
     // Places state
     const [activeTab, setActiveTab] = useState<StatusTab>('in_review');
@@ -79,6 +82,11 @@ export default function DashboardScreen() {
 
     // ─── Places logic ───
 
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+        return () => clearTimeout(t);
+    }, [searchQuery]);
+
     const buildPlacesQuery = useCallback((status: StatusTab, limit: number, offset: number, category?: string | null) => {
         const params = new URLSearchParams();
         params.set('status', status);
@@ -86,8 +94,9 @@ export default function DashboardScreen() {
         params.set('offset', String(offset));
         if (selectedCity) params.set('city', selectedCity);
         if (category) params.set('category', category.toLowerCase());
+        if (debouncedSearch) params.set('search', debouncedSearch);
         return `/admin/places?${params}`;
-    }, [selectedCity]);
+    }, [selectedCity, debouncedSearch]);
 
     const loadPlaces = useCallback(async (status: StatusTab, offset = 0) => {
         const isInitial = offset === 0;
@@ -129,6 +138,7 @@ export default function DashboardScreen() {
     }, []);
 
     const loadCounts = useCallback(() => {
+        if (debouncedSearch) return Promise.resolve();
         return Promise.all(
             TABS.map(async (tab) => {
                 const res = await api<PlacesResponse>(buildPlacesQuery(tab.key, 1, 0));
@@ -137,7 +147,7 @@ export default function DashboardScreen() {
                 }
             })
         );
-    }, [buildPlacesQuery]);
+    }, [buildPlacesQuery, debouncedSearch]);
 
     // Fetch counts (respects city filter)
     useEffect(() => {
@@ -619,13 +629,14 @@ export default function DashboardScreen() {
                                 if (Platform.OS === 'ios') {
                                     ActionSheetIOS.showActionSheetWithOptions(
                                         {
-                                            options: ['Cancel', 'Create manually', 'Import from Google', 'Import batch (links/CSV)'],
+                                            options: ['Cancel', 'Create manually', 'Import from Google', 'Import batch (links/CSV)', 'Backfill descriptions'],
                                             cancelButtonIndex: 0,
                                         },
                                         (idx) => {
                                             if (idx === 1) router.push('/place/create');
                                             else if (idx === 2) router.push('/places/import-google');
                                             else if (idx === 3) router.push('/places/import-batch');
+                                            else if (idx === 4) router.push('/places/backfill-descriptions');
                                         }
                                     );
                                 } else {
@@ -633,6 +644,7 @@ export default function DashboardScreen() {
                                         { text: 'Create manually', onPress: () => router.push('/place/create') },
                                         { text: 'Import from Google', onPress: () => router.push('/places/import-google') },
                                         { text: 'Import batch (links/CSV)', onPress: () => router.push('/places/import-batch') },
+                                        { text: 'Backfill descriptions', onPress: () => router.push('/places/backfill-descriptions') },
                                         { text: 'Cancel', style: 'cancel' },
                                     ]);
                                 }
@@ -665,6 +677,28 @@ export default function DashboardScreen() {
                         </Text>
                     </Pressable>
                 </View>
+
+                {/* Search by name */}
+                {mode === 'places' && (
+                    <View style={styles.searchRow}>
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search by name..."
+                            placeholderTextColor={colors.textSecondary}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            autoCorrect={false}
+                            autoCapitalize="none"
+                            returnKeyType="search"
+                            maxLength={100}
+                        />
+                        {searchQuery.length > 0 && (
+                            <Pressable onPress={() => setSearchQuery('')} style={styles.searchClear} hitSlop={8}>
+                                <Text style={styles.searchClearText}>×</Text>
+                            </Pressable>
+                        )}
+                    </View>
+                )}
 
                 {/* City filter (general) */}
                 {mode === 'places' && cities.length > 0 && (
@@ -975,6 +1009,23 @@ const styles = StyleSheet.create({
     },
     filterChipTextActive: { color: '#fff' },
 
+    // Search input
+    searchRow: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: spacing.md, paddingBottom: spacing.sm,
+    },
+    searchInput: {
+        flex: 1, borderWidth: 1, borderColor: colors.borderColor,
+        borderRadius: 16, paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+        backgroundColor: colors.bgCard, color: colors.textMain, fontFamily: fonts.body,
+        fontSize: 14,
+    },
+    searchClear: {
+        marginLeft: spacing.sm, minWidth: 32, minHeight: 32,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    searchClearText: { fontSize: 22, color: colors.textSecondary, lineHeight: 26 },
+
     // Tabs
     tabsRow: {
         flexDirection: 'row', paddingHorizontal: 20, gap: spacing.sm, marginBottom: spacing.md,
@@ -997,7 +1048,7 @@ const styles = StyleSheet.create({
     badgeTextInactive: { color: colors.textSecondary },
 
     // Swipe deck
-    deckContainer: { alignItems: 'center', justifyContent: 'center', paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+    deckContainer: { alignItems: 'center', justifyContent: 'center', paddingTop: 12, paddingBottom: spacing.xxl },
     emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
     emptyText: { color: colors.textMain, fontSize: 18, fontFamily: fonts.body },
     reloadBtn: {

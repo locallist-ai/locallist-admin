@@ -89,7 +89,7 @@ export default function ImportGoogleScreen() {
                     name: r.name,
                     category,
                     subcategory,
-                    whyThisPlace: 'Imported from Google Places. Pending curatorial copy.',
+                    whyThisPlace: r.editorialSummary,
                     city: city.trim() || 'Miami',
                     latitude: r.lat,
                     longitude: r.lng,
@@ -289,6 +289,9 @@ function PlaceResultCard({
                 {place.formattedAddress ? (
                     <Text style={styles.resultAddress} numberOfLines={1}>{place.formattedAddress}</Text>
                 ) : null}
+                {place.editorialSummary ? (
+                    <Text style={styles.resultEditorial} numberOfLines={2}>{place.editorialSummary}</Text>
+                ) : null}
                 <View style={styles.resultMeta}>
                     {place.rating != null && (
                         <Text style={styles.metaText}>★ {place.rating.toFixed(1)}</Text>
@@ -372,7 +375,8 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.sm,
     },
     inLibBadgeText: { fontSize: 10, fontFamily: fonts.bodySemiBold, color: colors.electricBlue },
-    resultAddress: { fontSize: 12, color: colors.textSecondary, fontFamily: fonts.body, marginBottom: 4 },
+    resultAddress: { fontSize: 12, color: colors.textSecondary, fontFamily: fonts.body, marginBottom: 2 },
+    resultEditorial: { fontSize: 12, color: colors.textMain, fontFamily: fonts.body, fontStyle: 'italic', marginBottom: 4, opacity: 0.85 },
     resultMeta: { flexDirection: 'row', gap: 6 },
     metaText: { fontSize: 12, color: colors.textSecondary, fontFamily: fonts.bodyMedium },
     checkbox: {

@@ -74,6 +74,7 @@ export interface GooglePlacePreview {
     types: string[];
     website?: string;
     phone?: string;
+    editorialSummary?: string;
     existsInLib: boolean;
 }
 

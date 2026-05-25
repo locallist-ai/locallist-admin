@@ -14,7 +14,7 @@ function readFirebaseConfig() {
     };
 }
 
-export default ({ config }: ConfigContext): ExpoConfig => ({
+export default ({ config }: ConfigContext): ExpoConfig & { main?: string } => ({
     ...config,
     name: 'LocalList Admin',
     slug: 'LocalListAdmin',

@@ -16,7 +16,9 @@ import { api } from '../../../src/lib/api';
 import type { PlaceData, PlaceTranslateDraft } from '../../../src/types/place';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 import { getDirtyFields as computeDirtyFields } from '../../../src/utils/getDirtyFields';
-import { CATEGORIES, SUBCATEGORIES_BY_CATEGORY, getSubcategories } from '../../../src/lib/constants';
+import { CATEGORIES } from '../../../src/lib/constants';
+import { useTaxonomy, type SubcategoryItem } from '../../../src/hooks/useTaxonomy';
+import AddSubcategoryModal from '../../../src/components/AddSubcategoryModal';
 
 const PRICE_RANGES = ['FREE', '$', '$$', '$$$', '$$$$'] as const;
 const BEST_TIMES = ['morning', 'lunch', 'afternoon', 'dinner', 'late_night'] as const;
@@ -39,6 +41,13 @@ export default function PlaceEditScreen() {
     // New tag / photo inputs
     const [newTag, setNewTag] = useState('');
     const [newPhotoUrl, setNewPhotoUrl] = useState('');
+
+    // Dynamic subcategories
+    const { byCategory, refetch, createSubcategory } = useTaxonomy();
+    const [addSubVisible, setAddSubVisible] = useState(false);
+
+    // AI description suggestion
+    const [suggesting, setSuggesting] = useState(false);
 
     const loadPlace = useCallback(async () => {
         setLoading(true);
@@ -212,24 +221,59 @@ export default function PlaceEditScreen() {
                     <FieldLabel label="Subcategory" />
                     {form.category ? (
                         <>
-                            {form.subcategory && !getSubcategories(form.category).includes(form.subcategory) && (
-                                <Text style={styles.legacySubcategoryWarning}>
-                                    Legacy: "{form.subcategory}" - pick canonical below
-                                </Text>
-                            )}
-                            <View style={styles.chipRow}>
-                                {getSubcategories(form.category).map((sub) => (
-                                    <Pressable
-                                        key={sub}
-                                        style={[styles.chip, form.subcategory === sub && styles.chipActive]}
-                                        onPress={() => updateField('subcategory', form.subcategory === sub ? '' : sub)}
-                                    >
-                                        <Text style={[styles.chipText, form.subcategory === sub && styles.chipTextActive]}>
-                                            {sub}
-                                        </Text>
-                                    </Pressable>
-                                ))}
-                            </View>
+                            {(() => {
+                                const dynamicSubs = byCategory[form.category] ?? [];
+                                const normalizedSub = form.subcategory?.trim().toLowerCase() ?? '';
+                                const matchSub = (s: SubcategoryItem) =>
+                                    s.key.toLowerCase() === normalizedSub || s.labelEn.toLowerCase() === normalizedSub;
+                                const isLegacy = !!form.subcategory && !dynamicSubs.some(matchSub);
+                                return (
+                                    <>
+                                        {isLegacy && (
+                                            <Text style={styles.legacySubcategoryWarning}>
+                                                Legacy: "{form.subcategory}" - pick canonical below
+                                            </Text>
+                                        )}
+                                        {dynamicSubs.length === 0 && !isLegacy && (
+                                            <Text style={styles.subcategoryHint}>
+                                                No subcategories for {form.category}. Tap "+ Add" to create one.
+                                            </Text>
+                                        )}
+                                        <View style={styles.chipRow}>
+                                            {dynamicSubs.map((sub) => (
+                                                <Pressable
+                                                    key={sub.key}
+                                                    style={[styles.chip, matchSub(sub) && styles.chipActive]}
+                                                    onPress={() => updateField('subcategory', matchSub(sub) ? '' : sub.key)}
+                                                >
+                                                    <Text style={[styles.chipText, matchSub(sub) && styles.chipTextActive]}>
+                                                        {sub.labelEn}
+                                                    </Text>
+                                                </Pressable>
+                                            ))}
+                                            <Pressable
+                                                style={[styles.chip, styles.chipAdd]}
+                                                onPress={() => setAddSubVisible(true)}
+                                            >
+                                                <Text style={styles.chipAddText}>+ Add</Text>
+                                            </Pressable>
+                                        </View>
+                                        <AddSubcategoryModal
+                                            visible={addSubVisible}
+                                            categoryKey={form.category!}
+                                            onConfirm={async (payload) => {
+                                                const newSub = await createSubcategory({ categoryKey: form.category!, ...payload });
+                                                setAddSubVisible(false);
+                                                if (newSub) {
+                                                    await refetch();
+                                                    updateField('subcategory', newSub.key);
+                                                }
+                                            }}
+                                            onCancel={() => setAddSubVisible(false)}
+                                        />
+                                    </>
+                                );
+                            })()}
                         </>
                     ) : (
                         <Text style={styles.subcategoryHint}>Select a category first</Text>
@@ -245,6 +289,25 @@ export default function PlaceEditScreen() {
                         textAlignVertical="top"
                         placeholderTextColor={colors.textSecondary}
                     />
+                    <Pressable
+                        style={[styles.suggestBtn, suggesting && styles.suggestBtnDisabled]}
+                        disabled={suggesting}
+                        onPress={async () => {
+                            setSuggesting(true);
+                            const res = await api<{ whyThisPlace: string }>(`/admin/places/${id}/suggest-description`, { method: 'POST' });
+                            setSuggesting(false);
+                            if (res.data?.whyThisPlace) {
+                                updateField('whyThisPlace', res.data.whyThisPlace);
+                            } else {
+                                Alert.alert('Error', res.error ?? 'Could not generate description.');
+                            }
+                        }}
+                    >
+                        {suggesting
+                            ? <ActivityIndicator size="small" color={colors.textSecondary} />
+                            : <Text style={styles.suggestBtnText}>Suggest with AI</Text>
+                        }
+                    </Pressable>
                 </View>
 
                 {/* Section: Location */}
@@ -668,6 +731,39 @@ const styles = StyleSheet.create({
     addBtnText: {
         color: '#fff',
         fontSize: 22,
+        fontFamily: fonts.bodyBold,
+    },
+    chipAdd: {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: colors.electricBlue,
+        borderStyle: 'dashed',
+    },
+    chipAddText: {
+        color: colors.electricBlue,
+        fontSize: 18,
+        fontFamily: fonts.bodyBold,
+        lineHeight: 20,
+    },
+    suggestBtn: {
+        alignSelf: 'flex-start',
+        marginTop: spacing.xs,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: colors.electricBlue,
+        borderRadius: borderRadius.sm,
+        minWidth: 130,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    suggestBtnDisabled: {
+        opacity: 0.5,
+    },
+    suggestBtnText: {
+        color: colors.electricBlue,
+        fontSize: 13,
         fontFamily: fonts.bodyBold,
     },
     photoRow: {

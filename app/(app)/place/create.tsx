@@ -14,11 +14,13 @@ import { useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import type { PlaceData } from '../../../src/types/place';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
-import { CATEGORIES, PRICE_RANGES, BEST_TIMES, STATUSES, getSubcategories } from '../../../src/lib/constants';
+import { CATEGORIES, PRICE_RANGES, BEST_TIMES, STATUSES } from '../../../src/lib/constants';
+import { useTaxonomy } from '../../../src/hooks/useTaxonomy';
 
 export default function PlaceCreateScreen() {
     const router = useRouter();
     const [saving, setSaving] = useState(false);
+    const { byCategory } = useTaxonomy();
 
     const [form, setForm] = useState<Partial<PlaceData>>({
         city: 'Miami',
@@ -145,14 +147,14 @@ export default function PlaceCreateScreen() {
                     <FieldLabel label="Subcategory" />
                     {form.category ? (
                         <View style={styles.chipRow}>
-                            {getSubcategories(form.category).map((sub) => (
+                            {(byCategory[form.category] ?? []).map((sub) => (
                                 <Pressable
-                                    key={sub}
-                                    style={[styles.chip, form.subcategory === sub && styles.chipActive]}
-                                    onPress={() => updateField('subcategory', form.subcategory === sub ? '' : sub)}
+                                    key={sub.key}
+                                    style={[styles.chip, form.subcategory === sub.labelEn && styles.chipActive]}
+                                    onPress={() => updateField('subcategory', form.subcategory === sub.labelEn ? '' : sub.labelEn)}
                                 >
-                                    <Text style={[styles.chipText, form.subcategory === sub && styles.chipTextActive]}>
-                                        {sub}
+                                    <Text style={[styles.chipText, form.subcategory === sub.labelEn && styles.chipTextActive]}>
+                                        {sub.labelEn}
                                     </Text>
                                 </Pressable>
                             ))}
