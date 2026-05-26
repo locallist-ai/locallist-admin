@@ -3,7 +3,8 @@ export interface PlaceData {
     id: string;
     name: string;
     category: string;
-    subcategory?: string;
+    subcategories?: string[];
+    subcategory?: string;           // deprecated adapter — first element of subcategories
     neighborhood?: string;
     city?: string;
     latitude?: number;
@@ -31,7 +32,8 @@ export interface PlaceData {
     whyThisPlaceEs?: string | null;
     bestTimeEs?: string | null;
     neighborhoodEs?: string | null;
-    subcategoryEs?: string | null;
+    subcategoriesEs?: string[] | null;
+    subcategoryEs?: string | null;  // deprecated adapter
     bestForEs?: string[] | null;
     suitableForEs?: string[] | null;
     translationStatusEs?: string | null;
@@ -43,7 +45,8 @@ export interface PlaceTranslateDraft {
     whyThisPlaceEs: string | null;
     bestTimeEs: string | null;
     neighborhoodEs: string | null;
-    subcategoryEs: string | null;
+    subcategoriesEs: string[] | null;
+    subcategoryEs: string | null;   // deprecated adapter
     bestForEs: string[] | null;
     suitableForEs: string[] | null;
 }

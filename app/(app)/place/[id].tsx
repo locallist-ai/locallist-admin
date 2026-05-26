@@ -144,7 +144,7 @@ export default function PlaceEditScreen() {
                 whyThisPlaceEs: res.data!.whyThisPlaceEs ?? prev.whyThisPlaceEs,
                 bestTimeEs: res.data!.bestTimeEs ?? prev.bestTimeEs,
                 neighborhoodEs: res.data!.neighborhoodEs ?? prev.neighborhoodEs,
-                subcategoryEs: res.data!.subcategoryEs ?? prev.subcategoryEs,
+                subcategoriesEs: res.data!.subcategoriesEs ?? prev.subcategoriesEs,
                 bestForEs: res.data!.bestForEs ?? prev.bestForEs,
                 suitableForEs: res.data!.suitableForEs ?? prev.suitableForEs,
             }));
@@ -218,39 +218,47 @@ export default function PlaceEditScreen() {
                         ))}
                     </View>
 
-                    <FieldLabel label="Subcategory" />
+                    <FieldLabel label="Subcategories" />
                     {form.category ? (
                         <>
                             {(() => {
                                 const dynamicSubs = byCategory[form.category] ?? [];
-                                const normalizedSub = form.subcategory?.trim().toLowerCase() ?? '';
-                                const matchSub = (s: SubcategoryItem) =>
-                                    s.key.toLowerCase() === normalizedSub || s.labelEn.toLowerCase() === normalizedSub;
-                                const isLegacy = !!form.subcategory && !dynamicSubs.some(matchSub);
+                                const selected = form.subcategories ?? [];
+                                const legacyItems = selected.filter(
+                                    (s) => !dynamicSubs.some((d) => d.key.toLowerCase() === s.toLowerCase())
+                                );
                                 return (
                                     <>
-                                        {isLegacy && (
+                                        {legacyItems.length > 0 && (
                                             <Text style={styles.legacySubcategoryWarning}>
-                                                Legacy: "{form.subcategory}" - pick canonical below
+                                                Legacy: "{legacyItems.join(', ')}" — pick canonical below
                                             </Text>
                                         )}
-                                        {dynamicSubs.length === 0 && !isLegacy && (
+                                        {dynamicSubs.length === 0 && legacyItems.length === 0 && (
                                             <Text style={styles.subcategoryHint}>
                                                 No subcategories for {form.category}. Tap "+ Add" to create one.
                                             </Text>
                                         )}
                                         <View style={styles.chipRow}>
-                                            {dynamicSubs.map((sub) => (
-                                                <Pressable
-                                                    key={sub.key}
-                                                    style={[styles.chip, matchSub(sub) && styles.chipActive]}
-                                                    onPress={() => updateField('subcategory', matchSub(sub) ? '' : sub.key)}
-                                                >
-                                                    <Text style={[styles.chipText, matchSub(sub) && styles.chipTextActive]}>
-                                                        {sub.labelEn}
-                                                    </Text>
-                                                </Pressable>
-                                            ))}
+                                            {dynamicSubs.map((sub) => {
+                                                const isActive = selected.some((s) => s.toLowerCase() === sub.key.toLowerCase());
+                                                return (
+                                                    <Pressable
+                                                        key={sub.key}
+                                                        style={[styles.chip, isActive && styles.chipActive]}
+                                                        onPress={() => {
+                                                            const next = isActive
+                                                                ? selected.filter((s) => s.toLowerCase() !== sub.key.toLowerCase())
+                                                                : [...selected, sub.key];
+                                                            updateField('subcategories', next);
+                                                        }}
+                                                    >
+                                                        <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                                                            {sub.labelEn}
+                                                        </Text>
+                                                    </Pressable>
+                                                );
+                                            })}
                                             <Pressable
                                                 style={[styles.chip, styles.chipAdd]}
                                                 onPress={() => setAddSubVisible(true)}
@@ -266,7 +274,7 @@ export default function PlaceEditScreen() {
                                                 setAddSubVisible(false);
                                                 if (newSub) {
                                                     await refetch();
-                                                    updateField('subcategory', newSub.key);
+                                                    updateField('subcategories', [...selected, newSub.key]);
                                                 }
                                             }}
                                             onCancel={() => setAddSubVisible(false)}
@@ -523,12 +531,12 @@ export default function PlaceEditScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
 
-                            <FieldLabel label="Subcategory (ES)" />
+                            <FieldLabel label="Subcategories (ES), comma separated" />
                             <TextInput
                                 style={styles.input}
-                                value={form.subcategoryEs ?? ''}
-                                onChangeText={(v) => updateField('subcategoryEs', v || null)}
-                                placeholder={form.subcategory ?? ''}
+                                value={form.subcategoriesEs?.join(', ') ?? ''}
+                                onChangeText={(v) => updateField('subcategoriesEs', v ? v.split(',').map((s) => s.trim()).filter(Boolean) : null)}
+                                placeholder={(form.subcategories ?? []).join(', ')}
                                 placeholderTextColor={colors.textSecondary}
                             />
 
