@@ -55,7 +55,7 @@ export default function PlaceCreateScreen() {
                 name: form.name.trim(),
                 category: form.category,
                 whyThisPlace: form.whyThisPlace.trim(),
-                subcategory: form.subcategory?.trim() || undefined,
+                subcategories: form.subcategories?.length ? form.subcategories : undefined,
                 neighborhood: form.neighborhood?.trim() || undefined,
                 city: form.city?.trim() || 'Miami',
                 latitude: form.latitude,
@@ -144,20 +144,29 @@ export default function PlaceCreateScreen() {
                         ))}
                     </View>
 
-                    <FieldLabel label="Subcategory" />
+                    <FieldLabel label="Subcategories" />
                     {form.category ? (
                         <View style={styles.chipRow}>
-                            {(byCategory[form.category] ?? []).map((sub) => (
-                                <Pressable
-                                    key={sub.key}
-                                    style={[styles.chip, form.subcategory === sub.labelEn && styles.chipActive]}
-                                    onPress={() => updateField('subcategory', form.subcategory === sub.labelEn ? '' : sub.labelEn)}
-                                >
-                                    <Text style={[styles.chipText, form.subcategory === sub.labelEn && styles.chipTextActive]}>
-                                        {sub.labelEn}
-                                    </Text>
-                                </Pressable>
-                            ))}
+                            {(byCategory[form.category] ?? []).map((sub) => {
+                                const isActive = (form.subcategories ?? []).some((s) => s.toLowerCase() === sub.key.toLowerCase());
+                                return (
+                                    <Pressable
+                                        key={sub.key}
+                                        style={[styles.chip, isActive && styles.chipActive]}
+                                        onPress={() => {
+                                            const current = form.subcategories ?? [];
+                                            const next = isActive
+                                                ? current.filter((s) => s.toLowerCase() !== sub.key.toLowerCase())
+                                                : [...current, sub.key];
+                                            updateField('subcategories', next);
+                                        }}
+                                    >
+                                        <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                                            {sub.labelEn}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
                         </View>
                     ) : (
                         <Text style={styles.subcategoryHint}>Select a category first</Text>

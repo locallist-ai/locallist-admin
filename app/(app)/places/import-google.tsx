@@ -82,13 +82,13 @@ export default function ImportGoogleScreen() {
             .filter((r) => selected.has(r.googlePlaceId) && !r.existsInLib)
             .map<Partial<PlaceData>>((r) => {
                 const inferredSub = inferSubcategoryFromGoogleTypes(category!, r.types ?? [], r.name);
-                const subcategory = subcategoryOverrides[r.googlePlaceId] !== undefined
+                const resolvedSub = subcategoryOverrides[r.googlePlaceId] !== undefined
                     ? subcategoryOverrides[r.googlePlaceId] ?? undefined
                     : inferredSub ?? undefined;
                 return {
                     name: r.name,
                     category,
-                    subcategory,
+                    subcategories: resolvedSub ? [resolvedSub] : undefined,
                     whyThisPlace: r.editorialSummary,
                     city: city.trim() || 'Miami',
                     latitude: r.lat,
