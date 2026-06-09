@@ -14,7 +14,7 @@ const basePlace: PlaceData = {
     id: 'abc-123',
     name: 'Café Central',
     category: 'Coffee',
-    subcategory: 'Specialty coffee',
+    subcategories: ['specialty-coffee'],
     whyThisPlace: 'Tostadores propios',
     neighborhood: 'Chueca',
     city: 'Madrid',
@@ -100,5 +100,59 @@ describe('getDirtyFields', () => {
             longitude: 'abc' as unknown as number,
         };
         expect(getDirtyFields(original, form)).toEqual({});
+    });
+
+    // Regresión del bug "solo se añade la primera subcategoría": la lista de
+    // claves diffeaba el adaptador singular `subcategory` (que el PATCH del
+    // backend ignora) y nunca `subcategories`, así que los cambios del array
+    // se descartaban silenciosamente al guardar.
+    it('detecta cambios en subcategories (plural) y los incluye en el PATCH', () => {
+        const form: Partial<PlaceData> = {
+            ...basePlace,
+            subcategories: ['specialty-coffee', 'espresso-bar', 'bakery-cafe'],
+        };
+        const dirty = getDirtyFields(basePlace, form);
+        expect(dirty).toEqual({ subcategories: ['specialty-coffee', 'espresso-bar', 'bakery-cafe'] });
+    });
+
+    it('NO diffea el adaptador deprecated subcategory (singular)', () => {
+        const original = { ...basePlace, subcategory: 'Specialty coffee' } as PlaceData;
+        const form: Partial<PlaceData> = { ...original, subcategory: 'Espresso bar' };
+        expect(getDirtyFields(original, form)).toEqual({});
+    });
+
+    it('detecta cambios en visitDurationMin', () => {
+        const original = { ...basePlace, visitDurationMin: 45 } as PlaceData;
+        const form: Partial<PlaceData> = { ...original, visitDurationMin: 90 };
+        expect(getDirtyFields(original, form)).toEqual({ visitDurationMin: 90 });
+    });
+
+    it('detecta cambios en los campos i18n ES', () => {
+        const original = { ...basePlace, nameEs: null, subcategoriesEs: null } as PlaceData;
+        const form: Partial<PlaceData> = {
+            ...original,
+            nameEs: 'Café Central',
+            subcategoriesEs: ['café de especialidad'],
+            translationStatusEs: 'approved',
+        };
+        const dirty = getDirtyFields(original, form);
+        expect(dirty).toEqual({
+            nameEs: 'Café Central',
+            subcategoriesEs: ['café de especialidad'],
+            translationStatusEs: 'approved',
+        });
+    });
+
+    // El PATCH trata null como "sin cambio" en los campos ES; vaciar un input
+    // debe enviar el centinela de borrado ('' para strings, [] para listas).
+    it('normaliza null -> centinela de borrado en campos i18n ES', () => {
+        const original = {
+            ...basePlace,
+            nameEs: 'Café Central',
+            bestForEs: ['trabajo'],
+        } as PlaceData;
+        const form: Partial<PlaceData> = { ...original, nameEs: null, bestForEs: null };
+        const dirty = getDirtyFields(original, form);
+        expect(dirty).toEqual({ nameEs: '', bestForEs: [] });
     });
 });
