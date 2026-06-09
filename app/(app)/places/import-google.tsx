@@ -470,7 +470,10 @@ const styles = StyleSheet.create({
         fontSize: 17, fontFamily: fonts.bodySemiBold, color: colors.textMain,
         marginBottom: spacing.sm,
     },
-    pickerList: { flexGrow: 0 },
+    // flexShrink lets the list shrink below content size when the card hits its
+    // maxHeight, which is what makes the ScrollView actually scroll. (flex: 1
+    // would risk collapsing to zero height inside an auto-height parent.)
+    pickerList: { flexGrow: 0, flexShrink: 1 },
     pickerOption: {
         paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.borderColor,
     },
