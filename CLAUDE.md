@@ -36,13 +36,14 @@ npx expo start --dev-client --port 8084
 - `app/(auth)/login.tsx` — Google Sign-In: Firebase popup on web, native SDK on mobile. Domain locked to `@locallist.ai`.
 - `src/components/SwipeCard.tsx` — Gesture-handled card for approving/rejecting places.
 - `src/components/RejectionModal.tsx` — Modal for entering rejection reason.
-- `src/components/AddSubcategoryModal.tsx` — Modal for creating a new subcategory (key + EN/ES labels).
+- `src/components/AddSubcategoryModal.tsx` — Modal for creating subcategories in batch (key + EN/ES labels per row); partial failures keep their rows with inline errors.
 - `src/components/PlaceSearch.tsx` — Debounced autocomplete place picker with dropdown.
 - `src/components/ErrorBoundary.tsx` — React error boundary wrapper.
 - `src/lib/api.ts` — API client matching `LocalList.API.NET` structure.
 - `src/lib/firebase.ts` — Firebase SDK init from `expoConfig.extra.firebase` (populated by `app.config.ts` from the plist).
 - `src/lib/theme.ts` — Colors, fonts, spacing, borderRadius constants.
-- `src/lib/taxonomy.ts` — Static taxonomy: `CATEGORIES`, `SUBCATEGORIES_BY_CATEGORY`, Google types → subcategory mapping.
+- `src/lib/taxonomy.ts` — Static taxonomy: `CATEGORIES`, `SUBCATEGORIES_BY_CATEGORY`, Google types → subcategory mapping. Pickers prefer the live API taxonomy (`useTaxonomy`); the static list is inference + fallback only.
+- `src/lib/subcategories.ts` — Pure API calls for creating subcategories (single + batch with partial-failure reporting).
 - `src/lib/constants.ts` — Re-exports taxonomy + `PRICE_RANGES`, `BEST_TIMES`, `STATUSES`, `MAX_STOPS_PER_DAY`.
 - `src/utils/getDirtyFields.ts` — Dirty-field diff for PATCH bodies (coerces numeric strings from DTO drift).
 - `src/context/AuthContext.tsx` — Auth state management (JWT + Firebase integration).
@@ -55,7 +56,7 @@ npx expo start --dev-client --port 8084
 
 ```bash
 npx tsc --noEmit        # typecheck
-npm test                # vitest (3 test files, 11 tests, pure TS utils únicamente)
+npm test                # vitest (pure TS utils únicamente; no contar archivos aquí — se desactualiza)
 npm run lint            # expo lint (ESLint flat config)
 ```
 
