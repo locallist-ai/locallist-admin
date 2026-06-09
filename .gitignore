@@ -46,6 +46,7 @@ yarn-error.*
 
 # Local EAS builds
 *.ipa
+*.app/
 
 # pnpm (not used; npm is the package manager)
 pnpm-lock.yaml
