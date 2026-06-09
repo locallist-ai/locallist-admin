@@ -43,7 +43,7 @@ export default function PlaceEditScreen() {
     const [newPhotoUrl, setNewPhotoUrl] = useState('');
 
     // Dynamic subcategories
-    const { byCategory, createSubcategory } = useTaxonomy();
+    const { byCategory, createSubcategories } = useTaxonomy();
     const [addSubVisible, setAddSubVisible] = useState(false);
 
     // AI description suggestion
@@ -269,13 +269,18 @@ export default function PlaceEditScreen() {
                                         <AddSubcategoryModal
                                             visible={addSubVisible}
                                             categoryKey={form.category!}
-                                            onConfirm={async (payload) => {
-                                                // Throws on failure — the modal stays open and shows the error
-                                                const newSub = await createSubcategory({ categoryKey: form.category!, ...payload });
-                                                setAddSubVisible(false);
-                                                updateField('subcategories', [...selected, newSub.key]);
+                                            onCreate={(drafts) => createSubcategories(
+                                                drafts.map((d) => ({ categoryKey: form.category!, ...d })),
+                                            )}
+                                            onCreated={(keys) => {
+                                                // Functional update: onCreated can fire more than once
+                                                // (partial batch + retry) — never clobber earlier keys.
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    subcategories: [...(prev.subcategories ?? []), ...keys],
+                                                }));
                                             }}
-                                            onCancel={() => setAddSubVisible(false)}
+                                            onClose={() => setAddSubVisible(false)}
                                         />
                                     </>
                                 );

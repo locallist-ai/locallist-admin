@@ -77,7 +77,8 @@ export async function api<T>(
                     }
                     return {
                         data: null,
-                        error: json?.error ?? `HTTP ${res.status}`,
+                        // `||` (not `??`): an empty-string error body must still fall back
+                        error: json?.error || `HTTP ${res.status}`,
                         errorBody: json,
                         status: res.status,
                     };

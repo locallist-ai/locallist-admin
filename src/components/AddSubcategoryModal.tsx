@@ -5,70 +5,140 @@ import {
     Text,
     TextInput,
     Pressable,
+    ScrollView,
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
     ActivityIndicator,
 } from 'react-native';
 import { colors, fonts, spacing, borderRadius } from '../lib/theme';
+import type { BatchCreateResult } from '../lib/subcategories';
+
+export interface SubcategoryDraft {
+    key: string;
+    labelEn: string;
+    labelEs: string;
+}
+
+interface DraftRow extends SubcategoryDraft {
+    error: string;
+}
 
 interface AddSubcategoryModalProps {
     visible: boolean;
     categoryKey: string;
-    onConfirm: (payload: { key: string; labelEn: string; labelEs: string }) => Promise<void>;
-    onCancel: () => void;
+    /** Creates the drafts; partial failures come back in the result, not as a throw. */
+    onCreate: (drafts: SubcategoryDraft[]) => Promise<BatchCreateResult>;
+    /** Called with the keys that DID get created (possibly a partial batch). */
+    onCreated: (keys: string[]) => void;
+    onClose: () => void;
 }
 
 const SLUG_RE = /^[a-z0-9-]+$/;
 
+const emptyRow = (): DraftRow => ({ key: '', labelEn: '', labelEs: '', error: '' });
+
+function validateRow(row: DraftRow, index: number, rows: DraftRow[]): string {
+    if (row.key && !SLUG_RE.test(row.key)) return 'Only lowercase letters, digits, hyphens.';
+    const duplicate = rows.some((r, i) => i < index && r.key && r.key === row.key);
+    if (duplicate) return 'Duplicate key in this batch.';
+    return '';
+}
+
 export default function AddSubcategoryModal({
     visible,
     categoryKey,
-    onConfirm,
-    onCancel,
+    onCreate,
+    onCreated,
+    onClose,
 }: AddSubcategoryModalProps) {
-    const [key, setKey] = useState('');
-    const [labelEn, setLabelEn] = useState('');
-    const [labelEs, setLabelEs] = useState('');
+    const [rows, setRows] = useState<DraftRow[]>([emptyRow()]);
     const [saving, setSaving] = useState(false);
-    const [keyError, setKeyError] = useState('');
     const [submitError, setSubmitError] = useState('');
 
     const reset = () => {
-        setKey('');
-        setLabelEn('');
-        setLabelEs('');
-        setKeyError('');
+        setRows([emptyRow()]);
         setSubmitError('');
         setSaving(false);
     };
 
     const handleCancel = () => {
         reset();
-        onCancel();
+        onClose();
     };
 
-    const handleKeyChange = (v: string) => {
-        const lower = v.toLowerCase().replace(/\s+/g, '-');
-        setKey(lower);
-        setKeyError(lower && !SLUG_RE.test(lower) ? 'Only lowercase letters, digits, hyphens.' : '');
+    const updateRow = (index: number, patch: Partial<SubcategoryDraft>) => {
+        setRows((prev) => {
+            const next = prev.map((r, i) => (i === index ? { ...r, ...patch } : r));
+            return next.map((r, i) => ({ ...r, error: validateRow(r, i, next) }));
+        });
+        setSubmitError('');
     };
 
-    const isValid = key.trim() && labelEn.trim() && labelEs.trim() && SLUG_RE.test(key);
+    const handleKeyChange = (index: number, v: string) => {
+        updateRow(index, { key: v.toLowerCase().replace(/\s+/g, '-') });
+    };
+
+    const addRow = () => setRows((prev) => [...prev, emptyRow()]);
+
+    const removeRow = (index: number) => {
+        setRows((prev) => {
+            const next = prev.filter((_, i) => i !== index);
+            return next.map((r, i) => ({ ...r, error: validateRow(r, i, next) }));
+        });
+    };
+
+    const isRowComplete = (r: DraftRow) =>
+        r.key.trim() && r.labelEn.trim() && r.labelEs.trim() && SLUG_RE.test(r.key);
+    const isValid = rows.length > 0 && rows.every((r) => isRowComplete(r) && !r.error);
 
     const handleConfirm = async () => {
         if (!isValid || saving) return;
         setSaving(true);
         setSubmitError('');
+
+        const drafts = rows.map((r) => ({
+            key: r.key.trim(),
+            labelEn: r.labelEn.trim(),
+            labelEs: r.labelEs.trim(),
+        }));
+
+        let result: BatchCreateResult;
         try {
-            await onConfirm({ key: key.trim(), labelEn: labelEn.trim(), labelEs: labelEs.trim() });
-            reset();
+            result = await onCreate(drafts);
         } catch (err) {
-            // Keep the modal open with the user's input intact
-            setSubmitError(err instanceof Error ? err.message : 'Failed to create subcategory.');
+            setSubmitError(err instanceof Error ? err.message : 'Failed to create subcategories.');
             setSaving(false);
+            return;
         }
+
+        // Report partial successes immediately so they are never lost,
+        // even when some rows below failed.
+        if (result.created.length > 0) {
+            onCreated(result.created.map((c) => c.key));
+        }
+
+        if (result.failures.length === 0) {
+            reset();
+            onClose();
+            return;
+        }
+
+        // Keep only the failed rows, each with its own error, so the user
+        // can fix and retry without retyping.
+        setRows(result.failures.map((f) => ({
+            key: f.payload.key,
+            labelEn: f.payload.labelEn,
+            labelEs: f.payload.labelEs,
+            error: f.message,
+        })));
+        if (result.created.length > 0) {
+            setSubmitError(`${result.created.length} created. The rows below failed — fix and retry.`);
+        }
+        setSaving(false);
     };
+
+    const createLabel = rows.length > 1 ? `Create ${rows.length}` : 'Create';
 
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
@@ -77,38 +147,59 @@ export default function AddSubcategoryModal({
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
                 <View style={styles.card}>
-                    <Text style={styles.title}>New Subcategory</Text>
+                    <Text style={styles.title}>New Subcategories</Text>
                     <Text style={styles.subtitle}>Category: {categoryKey}</Text>
 
-                    <Text style={styles.fieldLabel}>Slug (key)</Text>
-                    <TextInput
-                        style={[styles.input, keyError ? styles.inputError : undefined]}
-                        placeholder="e.g. rooftop-bar"
-                        placeholderTextColor={colors.textSecondary}
-                        value={key}
-                        onChangeText={handleKeyChange}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
-                    {!!keyError && <Text style={styles.errorText}>{keyError}</Text>}
+                    <ScrollView style={styles.rowList} keyboardShouldPersistTaps="handled">
+                        {rows.map((row, index) => (
+                            <View key={index} style={styles.rowCard}>
+                                {rows.length > 1 && (
+                                    <Pressable
+                                        style={styles.removeBtn}
+                                        onPress={() => removeRow(index)}
+                                        disabled={saving}
+                                        hitSlop={8}
+                                    >
+                                        <Text style={styles.removeBtnText}>✕</Text>
+                                    </Pressable>
+                                )}
 
-                    <Text style={styles.fieldLabel}>Label EN</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="e.g. Rooftop Bar"
-                        placeholderTextColor={colors.textSecondary}
-                        value={labelEn}
-                        onChangeText={setLabelEn}
-                    />
+                                <Text style={styles.fieldLabel}>Slug (key)</Text>
+                                <TextInput
+                                    style={[styles.input, row.error ? styles.inputError : undefined]}
+                                    placeholder="e.g. rooftop-bar"
+                                    placeholderTextColor={colors.textSecondary}
+                                    value={row.key}
+                                    onChangeText={(v) => handleKeyChange(index, v)}
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                />
+                                {!!row.error && <Text style={styles.errorText}>{row.error}</Text>}
 
-                    <Text style={styles.fieldLabel}>Label ES</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="e.g. Bar en Azotea"
-                        placeholderTextColor={colors.textSecondary}
-                        value={labelEs}
-                        onChangeText={setLabelEs}
-                    />
+                                <Text style={styles.fieldLabel}>Label EN</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="e.g. Rooftop Bar"
+                                    placeholderTextColor={colors.textSecondary}
+                                    value={row.labelEn}
+                                    onChangeText={(v) => updateRow(index, { labelEn: v })}
+                                />
+
+                                <Text style={styles.fieldLabel}>Label ES</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="e.g. Bar en Azotea"
+                                    placeholderTextColor={colors.textSecondary}
+                                    value={row.labelEs}
+                                    onChangeText={(v) => updateRow(index, { labelEs: v })}
+                                />
+                            </View>
+                        ))}
+                    </ScrollView>
+
+                    <Pressable style={styles.addRowBtn} onPress={addRow} disabled={saving}>
+                        <Text style={styles.addRowText}>+ Add another</Text>
+                    </Pressable>
 
                     {!!submitError && <Text style={styles.errorText}>{submitError}</Text>}
 
@@ -123,7 +214,7 @@ export default function AddSubcategoryModal({
                         >
                             {saving
                                 ? <ActivityIndicator color="#fff" size="small" />
-                                : <Text style={styles.createText}>Create</Text>
+                                : <Text style={styles.createText}>{createLabel}</Text>
                             }
                         </Pressable>
                     </View>
@@ -147,6 +238,7 @@ const styles = StyleSheet.create({
         padding: spacing.lg,
         width: '100%',
         maxWidth: 400,
+        maxHeight: '85%',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,
@@ -164,6 +256,30 @@ const styles = StyleSheet.create({
         fontFamily: fonts.body,
         color: colors.textSecondary,
         marginBottom: spacing.md,
+    },
+    // Numeric maxHeight + flexGrow: 0 so the list scrolls reliably on every
+    // platform instead of depending on percentage clamps resolving.
+    rowList: {
+        flexGrow: 0,
+        maxHeight: 380,
+    },
+    rowCard: {
+        borderWidth: 1,
+        borderColor: colors.borderColor,
+        borderRadius: borderRadius.sm,
+        padding: spacing.sm,
+        marginBottom: spacing.sm,
+    },
+    removeBtn: {
+        position: 'absolute',
+        top: spacing.xs,
+        right: spacing.xs,
+        zIndex: 1,
+    },
+    removeBtnText: {
+        color: colors.textSecondary,
+        fontSize: 14,
+        fontFamily: fonts.bodySemiBold,
     },
     fieldLabel: {
         fontSize: 12,
@@ -192,6 +308,15 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontFamily: fonts.body,
         marginTop: 4,
+    },
+    addRowBtn: {
+        paddingVertical: spacing.xs,
+        marginTop: 2,
+    },
+    addRowText: {
+        color: colors.electricBlue,
+        fontFamily: fonts.bodySemiBold,
+        fontSize: 14,
     },
     actions: {
         flexDirection: 'row',

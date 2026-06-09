@@ -1,15 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api';
+import {
+    postSubcategoriesBatch,
+    type BatchCreateResult,
+    type CreateSubcategoryPayload,
+    type SubcategoryItem,
+} from '../lib/subcategories';
 
-export interface SubcategoryItem {
-    id: string;
-    categoryKey: string;
-    key: string;
-    labelEn: string;
-    labelEs: string;
-    createdAt: string;
-    updatedAt: string;
-}
+export type { SubcategoryItem } from '../lib/subcategories';
 
 type ByCategory = Record<string, SubcategoryItem[]>;
 
@@ -61,19 +59,18 @@ export function useTaxonomy() {
         }
     }, []);
 
-    const createSubcategory = useCallback(async (payload: {
-        categoryKey: string;
-        key: string;
-        labelEn: string;
-        labelEs: string;
-    }): Promise<SubcategoryItem> => {
-        const res = await api<SubcategoryItem>('/admin/subcategories', { method: 'POST', body: payload });
-        if (!res.data) {
-            throw new Error(res.error ?? 'Failed to create subcategory.');
+    // Creates each subcategory individually but refetches the taxonomy only
+    // once at the end. Partial failures are returned, never thrown, so the
+    // caller can keep the rows that did get created.
+    const createSubcategories = useCallback(async (
+        payloads: CreateSubcategoryPayload[],
+    ): Promise<BatchCreateResult> => {
+        const result = await postSubcategoriesBatch(payloads);
+        if (result.created.length > 0) {
+            cached = null; // invalidate
+            await fetchTaxonomy(true);
         }
-        cached = null; // invalidate
-        await fetchTaxonomy(true);
-        return res.data;
+        return result;
     }, [fetchTaxonomy]);
 
     useEffect(() => {
@@ -85,7 +82,6 @@ export function useTaxonomy() {
         byCategory: state.byCategory,
         loading: state.loading,
         error: state.error,
-        refetch: () => fetchTaxonomy(true),
-        createSubcategory,
+        createSubcategories,
     };
 }
