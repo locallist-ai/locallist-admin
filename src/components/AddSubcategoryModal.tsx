@@ -32,12 +32,14 @@ export default function AddSubcategoryModal({
     const [labelEs, setLabelEs] = useState('');
     const [saving, setSaving] = useState(false);
     const [keyError, setKeyError] = useState('');
+    const [submitError, setSubmitError] = useState('');
 
     const reset = () => {
         setKey('');
         setLabelEn('');
         setLabelEs('');
         setKeyError('');
+        setSubmitError('');
         setSaving(false);
     };
 
@@ -57,10 +59,13 @@ export default function AddSubcategoryModal({
     const handleConfirm = async () => {
         if (!isValid || saving) return;
         setSaving(true);
+        setSubmitError('');
         try {
             await onConfirm({ key: key.trim(), labelEn: labelEn.trim(), labelEs: labelEs.trim() });
             reset();
-        } catch {
+        } catch (err) {
+            // Keep the modal open with the user's input intact
+            setSubmitError(err instanceof Error ? err.message : 'Failed to create subcategory.');
             setSaving(false);
         }
     };
@@ -104,6 +109,8 @@ export default function AddSubcategoryModal({
                         value={labelEs}
                         onChangeText={setLabelEs}
                     />
+
+                    {!!submitError && <Text style={styles.errorText}>{submitError}</Text>}
 
                     <View style={styles.actions}>
                         <Pressable style={styles.cancelBtn} onPress={handleCancel} disabled={saving}>

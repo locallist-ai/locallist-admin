@@ -66,14 +66,14 @@ export function useTaxonomy() {
         key: string;
         labelEn: string;
         labelEs: string;
-    }): Promise<SubcategoryItem | null> => {
+    }): Promise<SubcategoryItem> => {
         const res = await api<SubcategoryItem>('/admin/subcategories', { method: 'POST', body: payload });
-        if (res.data) {
-            cached = null; // invalidate
-            await fetchTaxonomy(true);
-            return res.data;
+        if (!res.data) {
+            throw new Error(res.error ?? 'Failed to create subcategory.');
         }
-        return null;
+        cached = null; // invalidate
+        await fetchTaxonomy(true);
+        return res.data;
     }, [fetchTaxonomy]);
 
     useEffect(() => {

@@ -43,7 +43,7 @@ export default function PlaceEditScreen() {
     const [newPhotoUrl, setNewPhotoUrl] = useState('');
 
     // Dynamic subcategories
-    const { byCategory, refetch, createSubcategory } = useTaxonomy();
+    const { byCategory, createSubcategory } = useTaxonomy();
     const [addSubVisible, setAddSubVisible] = useState(false);
 
     // AI description suggestion
@@ -270,12 +270,10 @@ export default function PlaceEditScreen() {
                                             visible={addSubVisible}
                                             categoryKey={form.category!}
                                             onConfirm={async (payload) => {
+                                                // Throws on failure — the modal stays open and shows the error
                                                 const newSub = await createSubcategory({ categoryKey: form.category!, ...payload });
                                                 setAddSubVisible(false);
-                                                if (newSub) {
-                                                    await refetch();
-                                                    updateField('subcategories', [...selected, newSub.key]);
-                                                }
+                                                updateField('subcategories', [...selected, newSub.key]);
                                             }}
                                             onCancel={() => setAddSubVisible(false)}
                                         />
