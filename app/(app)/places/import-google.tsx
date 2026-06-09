@@ -11,6 +11,7 @@ import {
     Image,
     ActionSheetIOS,
     Platform,
+    Modal,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
@@ -30,6 +31,8 @@ export default function ImportGoogleScreen() {
     const [searched, setSearched] = useState(false);
     // Per-place subcategory overrides (googlePlaceId → subcategory)
     const [subcategoryOverrides, setSubcategoryOverrides] = useState<Record<string, string | null>>({});
+    // Place whose subcategory is being picked via the modal (non-iOS fallback)
+    const [pickerTarget, setPickerTarget] = useState<string | null>(null);
 
     const handleSearch = async () => {
         const q = query.trim();
@@ -73,8 +76,8 @@ export default function ImportGoogleScreen() {
 
     const openSubcategoryPicker = (googlePlaceId: string) => {
         if (!category) return;
-        const subs = getSubcategories(category);
         if (Platform.OS === 'ios') {
+            const subs = getSubcategories(category);
             ActionSheetIOS.showActionSheetWithOptions(
                 {
                     title: 'Subcategory',
@@ -87,12 +90,14 @@ export default function ImportGoogleScreen() {
                 },
             );
         } else {
-            Alert.alert('Subcategory', '', [
-                { text: 'No subcategory', onPress: () => setSubcategoryOverride(googlePlaceId, null) },
-                ...subs.map((s) => ({ text: s, onPress: () => setSubcategoryOverride(googlePlaceId, s) })),
-                { text: 'Cancel', style: 'cancel' as const },
-            ]);
+            // Android/web: Alert can't render 16+ scrollable options — use a modal
+            setPickerTarget(googlePlaceId);
         }
+    };
+
+    const handlePickerSelect = (sub: string | null) => {
+        if (pickerTarget) setSubcategoryOverride(pickerTarget, sub);
+        setPickerTarget(null);
     };
 
     const handleImport = async () => {
@@ -269,6 +274,37 @@ export default function ImportGoogleScreen() {
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+
+            {/* Subcategory picker (non-iOS fallback, scrollable) */}
+            <Modal
+                visible={pickerTarget !== null}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setPickerTarget(null)}
+            >
+                <Pressable style={styles.pickerOverlay} onPress={() => setPickerTarget(null)}>
+                    <Pressable style={styles.pickerCard} onPress={() => {}}>
+                        <Text style={styles.pickerTitle}>Subcategory</Text>
+                        <ScrollView style={styles.pickerList}>
+                            <Pressable style={styles.pickerOption} onPress={() => handlePickerSelect(null)}>
+                                <Text style={styles.pickerOptionMuted}>No subcategory</Text>
+                            </Pressable>
+                            {(category ? getSubcategories(category) : []).map((sub) => (
+                                <Pressable
+                                    key={sub}
+                                    style={styles.pickerOption}
+                                    onPress={() => handlePickerSelect(sub)}
+                                >
+                                    <Text style={styles.pickerOptionText}>{sub}</Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                        <Pressable style={styles.pickerCancel} onPress={() => setPickerTarget(null)}>
+                            <Text style={styles.pickerCancelText}>Cancel</Text>
+                        </Pressable>
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </>
     );
 }
@@ -422,4 +458,24 @@ const styles = StyleSheet.create({
         borderRadius: 10, marginLeft: 4,
     },
     subBadgeText: { fontSize: 10, fontFamily: fonts.bodySemiBold, color: '#6366f1' },
+    pickerOverlay: {
+        flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        justifyContent: 'center', alignItems: 'center', padding: spacing.lg,
+    },
+    pickerCard: {
+        backgroundColor: colors.bgCard, borderRadius: borderRadius.lg, padding: spacing.lg,
+        width: '100%', maxWidth: 400, maxHeight: '70%',
+    },
+    pickerTitle: {
+        fontSize: 17, fontFamily: fonts.bodySemiBold, color: colors.textMain,
+        marginBottom: spacing.sm,
+    },
+    pickerList: { flexGrow: 0 },
+    pickerOption: {
+        paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.borderColor,
+    },
+    pickerOptionText: { fontSize: 15, fontFamily: fonts.body, color: colors.textMain },
+    pickerOptionMuted: { fontSize: 15, fontFamily: fonts.body, color: colors.textSecondary, fontStyle: 'italic' },
+    pickerCancel: { alignItems: 'center', paddingTop: spacing.md },
+    pickerCancelText: { fontSize: 15, fontFamily: fonts.bodySemiBold, color: colors.textSecondary },
 });
