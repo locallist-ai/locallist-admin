@@ -9,13 +9,13 @@ import {
     ActivityIndicator,
     Alert,
     Image,
-    FlatList,
+    ActionSheetIOS,
+    Platform,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
-import type { GooglePlacePreview, GoogleSearchResponse } from '../../../src/types/place';
-import type { PlaceData } from '../../../src/types/place';
-import { CATEGORIES, inferSubcategoryFromGoogleTypes } from '../../../src/lib/constants';
+import type { GooglePlacePreview, GoogleSearchResponse, PlaceData } from '../../../src/types/place';
+import { CATEGORIES, getSubcategories, inferSubcategoryFromGoogleTypes } from '../../../src/lib/constants';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 
 export default function ImportGoogleScreen() {
@@ -69,6 +69,30 @@ export default function ImportGoogleScreen() {
 
     const setSubcategoryOverride = (googlePlaceId: string, sub: string | null) => {
         setSubcategoryOverrides((prev) => ({ ...prev, [googlePlaceId]: sub }));
+    };
+
+    const openSubcategoryPicker = (googlePlaceId: string) => {
+        if (!category) return;
+        const subs = getSubcategories(category);
+        if (Platform.OS === 'ios') {
+            ActionSheetIOS.showActionSheetWithOptions(
+                {
+                    title: 'Subcategory',
+                    options: ['Cancel', 'No subcategory', ...subs],
+                    cancelButtonIndex: 0,
+                },
+                (idx) => {
+                    if (idx === 1) setSubcategoryOverride(googlePlaceId, null);
+                    else if (idx >= 2) setSubcategoryOverride(googlePlaceId, subs[idx - 2]);
+                },
+            );
+        } else {
+            Alert.alert('Subcategory', '', [
+                { text: 'No subcategory', onPress: () => setSubcategoryOverride(googlePlaceId, null) },
+                ...subs.map((s) => ({ text: s, onPress: () => setSubcategoryOverride(googlePlaceId, s) })),
+                { text: 'Cancel', style: 'cancel' as const },
+            ]);
+        }
     };
 
     const handleImport = async () => {
@@ -215,9 +239,9 @@ export default function ImportGoogleScreen() {
                                     isSelected={selected.has(place.googlePlaceId)}
                                     onToggle={() => !place.existsInLib && toggleSelect(place.googlePlaceId)}
                                     suggestedSubcategory={activeSub}
-                                    onSubcategoryChange={
+                                    onEditSubcategory={
                                         category
-                                            ? (sub) => setSubcategoryOverride(place.googlePlaceId, sub)
+                                            ? () => openSubcategoryPicker(place.googlePlaceId)
                                             : undefined
                                     }
                                 />
@@ -254,13 +278,13 @@ function PlaceResultCard({
     isSelected,
     onToggle,
     suggestedSubcategory,
-    onSubcategoryChange,
+    onEditSubcategory,
 }: {
     place: GooglePlacePreview;
     isSelected: boolean;
     onToggle: () => void;
     suggestedSubcategory?: string | null;
-    onSubcategoryChange?: (sub: string | null) => void;
+    onEditSubcategory?: () => void;
 }) {
     const thumb = place.photos[0];
     return (
@@ -302,12 +326,14 @@ function PlaceResultCard({
                     {place.priceLevel != null && (
                         <Text style={styles.metaText}>{place.priceLevel}</Text>
                     )}
-                    {suggestedSubcategory && onSubcategoryChange && !place.existsInLib && (
+                    {onEditSubcategory && !place.existsInLib && (
                         <Pressable
                             style={styles.subBadge}
-                            onPress={(e) => { e.stopPropagation?.(); onSubcategoryChange(suggestedSubcategory ? null : null); }}
+                            onPress={(e) => { e.stopPropagation?.(); onEditSubcategory(); }}
                         >
-                            <Text style={styles.subBadgeText}>{suggestedSubcategory} ✎</Text>
+                            <Text style={styles.subBadgeText}>
+                                {suggestedSubcategory ? `${suggestedSubcategory} ✎` : '+ subcategory'}
+                            </Text>
                         </Pressable>
                     )}
                 </View>
