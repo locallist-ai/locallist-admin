@@ -44,10 +44,15 @@ export async function api<T>(
     if (token) requestHeaders['Authorization'] = `Bearer ${token}`;
 
     // One controller per call (not per retry attempt) so the external signal
-    // gets exactly one listener, removed in the finally below.
+    // gets exactly one listener, removed in the finally below. An already-aborted
+    // signal never fires 'abort', so propagate that state explicitly.
     const controller = new AbortController();
     const onExternalAbort = () => controller.abort();
-    externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
+    if (externalSignal?.aborted) {
+        controller.abort();
+    } else {
+        externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
+    }
 
     try {
         let attempt = 0;
