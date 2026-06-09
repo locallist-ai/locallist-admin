@@ -17,6 +17,7 @@ import { useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import type { GooglePlacePreview, GoogleSearchResponse, PlaceData } from '../../../src/types/place';
 import { CATEGORIES, getSubcategories, inferSubcategoryFromGoogleTypes } from '../../../src/lib/constants';
+import { useTaxonomy } from '../../../src/hooks/useTaxonomy';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 
 export default function ImportGoogleScreen() {
@@ -33,6 +34,22 @@ export default function ImportGoogleScreen() {
     const [subcategoryOverrides, setSubcategoryOverrides] = useState<Record<string, string | null>>({});
     // Place whose subcategory is being picked via the modal (non-iOS fallback)
     const [pickerTarget, setPickerTarget] = useState<string | null>(null);
+    // Live taxonomy from the API, so subcategories created in the place editor
+    // show up here too (the static list only knows the seed taxonomy).
+    const { byCategory } = useTaxonomy();
+
+    const subcategoryOptions = (cat: string): { key: string; label: string }[] => {
+        const dynamic = byCategory[cat] ?? [];
+        if (dynamic.length > 0) return dynamic.map((s) => ({ key: s.key, label: s.labelEn }));
+        // Fallback while the taxonomy hasn't loaded: static labels are also
+        // accepted by the API (it matches key OR labelEn, case-insensitive).
+        return getSubcategories(cat).map((label) => ({ key: label, label }));
+    };
+
+    const subcategoryLabel = (cat: string | null, value: string | null | undefined): string | null => {
+        if (!cat || !value) return value ?? null;
+        return subcategoryOptions(cat).find((o) => o.key === value)?.label ?? value;
+    };
 
     const handleSearch = async () => {
         const q = query.trim();
@@ -77,16 +94,16 @@ export default function ImportGoogleScreen() {
     const openSubcategoryPicker = (googlePlaceId: string) => {
         if (!category) return;
         if (Platform.OS === 'ios') {
-            const subs = getSubcategories(category);
+            const subs = subcategoryOptions(category);
             ActionSheetIOS.showActionSheetWithOptions(
                 {
                     title: 'Subcategory',
-                    options: ['Cancel', 'No subcategory', ...subs],
+                    options: ['Cancel', 'No subcategory', ...subs.map((s) => s.label)],
                     cancelButtonIndex: 0,
                 },
                 (idx) => {
                     if (idx === 1) setSubcategoryOverride(googlePlaceId, null);
-                    else if (idx >= 2) setSubcategoryOverride(googlePlaceId, subs[idx - 2]);
+                    else if (idx >= 2) setSubcategoryOverride(googlePlaceId, subs[idx - 2].key);
                 },
             );
         } else {
@@ -243,7 +260,7 @@ export default function ImportGoogleScreen() {
                                     place={place}
                                     isSelected={selected.has(place.googlePlaceId)}
                                     onToggle={() => !place.existsInLib && toggleSelect(place.googlePlaceId)}
-                                    suggestedSubcategory={activeSub}
+                                    suggestedSubcategory={subcategoryLabel(category, activeSub)}
                                     onEditSubcategory={
                                         category
                                             ? () => openSubcategoryPicker(place.googlePlaceId)
@@ -289,13 +306,13 @@ export default function ImportGoogleScreen() {
                             <Pressable style={styles.pickerOption} onPress={() => handlePickerSelect(null)}>
                                 <Text style={styles.pickerOptionMuted}>No subcategory</Text>
                             </Pressable>
-                            {(category ? getSubcategories(category) : []).map((sub) => (
+                            {(category ? subcategoryOptions(category) : []).map((sub) => (
                                 <Pressable
-                                    key={sub}
+                                    key={sub.key}
                                     style={styles.pickerOption}
-                                    onPress={() => handlePickerSelect(sub)}
+                                    onPress={() => handlePickerSelect(sub.key)}
                                 >
-                                    <Text style={styles.pickerOptionText}>{sub}</Text>
+                                    <Text style={styles.pickerOptionText}>{sub.label}</Text>
                                 </Pressable>
                             ))}
                         </ScrollView>
@@ -470,10 +487,10 @@ const styles = StyleSheet.create({
         fontSize: 17, fontFamily: fonts.bodySemiBold, color: colors.textMain,
         marginBottom: spacing.sm,
     },
-    // flexShrink lets the list shrink below content size when the card hits its
-    // maxHeight, which is what makes the ScrollView actually scroll. (flex: 1
-    // would risk collapsing to zero height inside an auto-height parent.)
-    pickerList: { flexGrow: 0, flexShrink: 1 },
+    // Numeric maxHeight on the list itself: percentage clamps on the card can
+    // fail to bound the ScrollView on large screens, leaving it unscrollable.
+    // flexShrink still lets it shrink further when the card hits its own clamp.
+    pickerList: { flexGrow: 0, flexShrink: 1, maxHeight: 380 },
     pickerOption: {
         paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.borderColor,
     },
