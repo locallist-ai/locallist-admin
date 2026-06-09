@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
-import type { PlanData, PlanStopData } from '../../../src/types/plan';
+import type { PlanData } from '../../../src/types/plan';
 import type { PlaceData } from '../../../src/types/place';
 import PlaceSearch from '../../../src/components/PlaceSearch';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';

@@ -17,7 +17,7 @@ import type { PlaceData, PlaceTranslateDraft } from '../../../src/types/place';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 import { getDirtyFields as computeDirtyFields } from '../../../src/utils/getDirtyFields';
 import { CATEGORIES } from '../../../src/lib/constants';
-import { useTaxonomy, type SubcategoryItem } from '../../../src/hooks/useTaxonomy';
+import { useTaxonomy } from '../../../src/hooks/useTaxonomy';
 import AddSubcategoryModal from '../../../src/components/AddSubcategoryModal';
 
 const PRICE_RANGES = ['FREE', '$', '$$', '$$$', '$$$$'] as const;
@@ -231,12 +231,12 @@ export default function PlaceEditScreen() {
                                     <>
                                         {legacyItems.length > 0 && (
                                             <Text style={styles.legacySubcategoryWarning}>
-                                                Legacy: "{legacyItems.join(', ')}" — pick canonical below
+                                                {`Legacy: "${legacyItems.join(', ')}" — pick canonical below`}
                                             </Text>
                                         )}
                                         {dynamicSubs.length === 0 && legacyItems.length === 0 && (
                                             <Text style={styles.subcategoryHint}>
-                                                No subcategories for {form.category}. Tap "+ Add" to create one.
+                                                {`No subcategories for ${form.category}. Tap "+ Add" to create one.`}
                                             </Text>
                                         )}
                                         <View style={styles.chipRow}>

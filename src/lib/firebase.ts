@@ -1,7 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
 // @ts-ignore — getReactNativePersistence types live under a subpath not resolved by tsc
-import { getReactNativePersistence, initializeAuth } from 'firebase/auth';
+import { getAuth, Auth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
@@ -26,7 +25,7 @@ export function getFirebaseAuth(): Auth {
         cachedAuth = getAuth(app);
     } else {
         try {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const AsyncStorage = require('@react-native-async-storage/async-storage').default;
             cachedAuth = initializeAuth(app, {
                 persistence: getReactNativePersistence(AsyncStorage),

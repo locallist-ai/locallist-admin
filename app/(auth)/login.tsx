@@ -11,6 +11,7 @@ import { colors, fonts, spacing, borderRadius } from '../../src/lib/theme';
 // Google Sign-In native SDK (mobile only)
 let GoogleSignin: any = null;
 if (Platform.OS !== 'web') {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
 }
 
