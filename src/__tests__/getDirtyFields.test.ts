@@ -127,6 +127,20 @@ describe('getDirtyFields', () => {
         expect(getDirtyFields(original, form)).toEqual({ visitDurationMin: 90 });
     });
 
+    // El PATCH trata null como "sin cambio" también en visitDurationMin; la
+    // API acepta 0 como centinela de borrado (una visita no puede durar 0').
+    it('vaciar visitDurationMin envía el centinela 0, no null', () => {
+        const original = { ...basePlace, visitDurationMin: 45 } as PlaceData;
+        const form: Partial<PlaceData> = { ...original, visitDurationMin: null };
+        expect(getDirtyFields(original, form)).toEqual({ visitDurationMin: 0 });
+    });
+
+    it('visitDurationMin null en ambos lados no marca dirty', () => {
+        const original = { ...basePlace, visitDurationMin: null } as PlaceData;
+        const form: Partial<PlaceData> = { ...original };
+        expect(getDirtyFields(original, form)).toEqual({});
+    });
+
     it('detecta cambios en los campos i18n ES', () => {
         const original = { ...basePlace, nameEs: null, subcategoriesEs: null } as PlaceData;
         const form: Partial<PlaceData> = {

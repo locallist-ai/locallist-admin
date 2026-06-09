@@ -30,6 +30,11 @@ const I18N_LIST_KEYS = new Set<keyof PlaceData>([
     'subcategoriesEs', 'bestForEs', 'suitableForEs',
 ]);
 
+// Numeric fields where the API also treats null as "no change" but accepts
+// 0 as the clearing sentinel (a real visit can't last 0 minutes). The form
+// stores a cleared input as null; send 0 so the value actually clears.
+const CLEAR_ZERO_KEYS = new Set<keyof PlaceData>(['visitDurationMin']);
+
 export function getDirtyFields(
     original: PlaceData,
     form: Partial<PlaceData>,
@@ -62,6 +67,8 @@ export function getDirtyFields(
                 dirty[key] = '';
             } else if (formVal == null && I18N_LIST_KEYS.has(key)) {
                 dirty[key] = [];
+            } else if (formVal == null && CLEAR_ZERO_KEYS.has(key)) {
+                dirty[key] = 0;
             } else {
                 dirty[key] = formVal;
             }

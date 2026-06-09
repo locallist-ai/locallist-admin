@@ -434,7 +434,11 @@ export default function PlaceEditScreen() {
                     <TextInput
                         style={styles.input}
                         value={form.visitDurationMin != null ? form.visitDurationMin.toString() : ''}
-                        onChangeText={(v) => updateField('visitDurationMin', v ? parseInt(v, 10) || null : null)}
+                        onChangeText={(v) => {
+                            // "0" must stay 0 (clear sentinel), not collapse to null via `||`
+                            const n = parseInt(v, 10);
+                            updateField('visitDurationMin', Number.isNaN(n) ? null : n);
+                        }}
                         keyboardType="number-pad"
                         placeholder="Leave blank to use category default"
                         placeholderTextColor={colors.textSecondary}
