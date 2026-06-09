@@ -121,3 +121,35 @@ describe('postSubcategoriesBatch', () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 });
+
+describe('validateDraft / isDraftComplete', () => {
+    const draft = (key: string) => ({ key, labelEn: 'Label', labelEs: 'Etiqueta' });
+
+    it('slug inválido -> mensaje de formato', async () => {
+        const { validateDraft } = await import('../lib/subcategories');
+        const rows = [draft('Rooftop Bar!')];
+        expect(validateDraft(rows[0], 0, rows)).toBe('Only lowercase letters, digits, hyphens.');
+    });
+
+    it('clave duplicada en el batch -> solo la fila posterior se marca', async () => {
+        const { validateDraft } = await import('../lib/subcategories');
+        const rows = [draft('pub'), draft('pub')];
+        expect(validateDraft(rows[0], 0, rows)).toBe('');
+        expect(validateDraft(rows[1], 1, rows)).toBe('Duplicate key in this batch.');
+    });
+
+    it('fila válida y única -> sin error (un error de servidor previo no la invalida)', async () => {
+        const { validateDraft } = await import('../lib/subcategories');
+        const rows = [draft('speakeasy'), draft('wine-bar')];
+        expect(validateDraft(rows[0], 0, rows)).toBe('');
+        expect(validateDraft(rows[1], 1, rows)).toBe('');
+    });
+
+    it('isDraftComplete exige las tres partes y slug válido', async () => {
+        const { isDraftComplete } = await import('../lib/subcategories');
+        expect(isDraftComplete(draft('wine-bar'))).toBe(true);
+        expect(isDraftComplete({ ...draft('wine-bar'), labelEs: '  ' })).toBe(false);
+        expect(isDraftComplete(draft(''))).toBe(false);
+        expect(isDraftComplete(draft('Wine Bar'))).toBe(false);
+    });
+});

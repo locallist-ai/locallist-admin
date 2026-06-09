@@ -10,11 +10,39 @@ export interface SubcategoryItem {
     updatedAt: string;
 }
 
-export interface CreateSubcategoryPayload {
-    categoryKey: string;
+/** One row of the batch-creation modal, before a category is attached. */
+export interface SubcategoryDraft {
     key: string;
     labelEn: string;
     labelEs: string;
+}
+
+export interface CreateSubcategoryPayload extends SubcategoryDraft {
+    categoryKey: string;
+}
+
+export const SLUG_RE = /^[a-z0-9-]+$/;
+
+/**
+ * Validation error for a draft row within its batch, or '' if valid.
+ * Only the later of two duplicate rows is flagged.
+ */
+export function validateDraft(
+    draft: SubcategoryDraft,
+    index: number,
+    all: SubcategoryDraft[],
+): string {
+    if (draft.key && !SLUG_RE.test(draft.key)) return 'Only lowercase letters, digits, hyphens.';
+    if (all.some((d, i) => i < index && d.key && d.key === draft.key)) {
+        return 'Duplicate key in this batch.';
+    }
+    return '';
+}
+
+export function isDraftComplete(draft: SubcategoryDraft): boolean {
+    return Boolean(
+        draft.key.trim() && draft.labelEn.trim() && draft.labelEs.trim() && SLUG_RE.test(draft.key),
+    );
 }
 
 export interface BatchCreateResult {

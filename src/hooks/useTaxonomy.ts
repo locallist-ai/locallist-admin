@@ -23,6 +23,15 @@ let cached: SubcategoryItem[] | null = null;
 let cachedAt: number | null = null;
 const CACHE_MS = 5 * 60 * 1000; // 5 min in-memory
 
+// Every mounted hook instance subscribes its setState here, so a successful
+// fetch from any screen (e.g. creating a subcategory in the place editor)
+// refreshes the pickers everywhere instead of waiting for remount/TTL.
+const subscribers = new Set<(state: TaxonomyState) => void>();
+
+function broadcast(state: TaxonomyState) {
+    for (const notify of subscribers) notify(state);
+}
+
 function buildByCategory(subs: SubcategoryItem[]): ByCategory {
     const result: ByCategory = {};
     for (const s of subs) {
@@ -53,7 +62,8 @@ export function useTaxonomy() {
         if (res.data) {
             cached = res.data;
             cachedAt = Date.now();
-            setState({ subs: res.data, byCategory: buildByCategory(res.data), loading: false, error: null });
+            // Broadcast (not setState): every mounted instance gets the update
+            broadcast({ subs: res.data, byCategory: buildByCategory(res.data), loading: false, error: null });
         } else {
             setState((prev) => ({ ...prev, loading: false, error: res.error }));
         }
@@ -72,6 +82,14 @@ export function useTaxonomy() {
         }
         return result;
     }, [fetchTaxonomy]);
+
+    // Subscribe before the initial fetch so its broadcast reaches this instance
+    useEffect(() => {
+        subscribers.add(setState);
+        return () => {
+            subscribers.delete(setState);
+        };
+    }, []);
 
     useEffect(() => {
         fetchTaxonomy();

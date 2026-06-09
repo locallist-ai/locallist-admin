@@ -12,13 +12,14 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { colors, fonts, spacing, borderRadius } from '../lib/theme';
-import type { BatchCreateResult } from '../lib/subcategories';
+import {
+    isDraftComplete,
+    validateDraft,
+    type BatchCreateResult,
+    type SubcategoryDraft,
+} from '../lib/subcategories';
 
-export interface SubcategoryDraft {
-    key: string;
-    labelEn: string;
-    labelEs: string;
-}
+export type { SubcategoryDraft } from '../lib/subcategories';
 
 interface DraftRow extends SubcategoryDraft {
     error: string;
@@ -34,16 +35,7 @@ interface AddSubcategoryModalProps {
     onClose: () => void;
 }
 
-const SLUG_RE = /^[a-z0-9-]+$/;
-
 const emptyRow = (): DraftRow => ({ key: '', labelEn: '', labelEs: '', error: '' });
-
-function validateRow(row: DraftRow, index: number, rows: DraftRow[]): string {
-    if (row.key && !SLUG_RE.test(row.key)) return 'Only lowercase letters, digits, hyphens.';
-    const duplicate = rows.some((r, i) => i < index && r.key && r.key === row.key);
-    if (duplicate) return 'Duplicate key in this batch.';
-    return '';
-}
 
 export default function AddSubcategoryModal({
     visible,
@@ -63,6 +55,9 @@ export default function AddSubcategoryModal({
     };
 
     const handleCancel = () => {
+        // Android back (onRequestClose) can fire mid-batch; resetting then
+        // would corrupt the in-flight state and lose the user's rows.
+        if (saving) return;
         reset();
         onClose();
     };
@@ -70,7 +65,7 @@ export default function AddSubcategoryModal({
     const updateRow = (index: number, patch: Partial<SubcategoryDraft>) => {
         setRows((prev) => {
             const next = prev.map((r, i) => (i === index ? { ...r, ...patch } : r));
-            return next.map((r, i) => ({ ...r, error: validateRow(r, i, next) }));
+            return next.map((r, i) => ({ ...r, error: validateDraft(r, i, next) }));
         });
         setSubmitError('');
     };
@@ -84,13 +79,15 @@ export default function AddSubcategoryModal({
     const removeRow = (index: number) => {
         setRows((prev) => {
             const next = prev.filter((_, i) => i !== index);
-            return next.map((r, i) => ({ ...r, error: validateRow(r, i, next) }));
+            return next.map((r, i) => ({ ...r, error: validateDraft(r, i, next) }));
         });
     };
 
-    const isRowComplete = (r: DraftRow) =>
-        r.key.trim() && r.labelEn.trim() && r.labelEs.trim() && SLUG_RE.test(r.key);
-    const isValid = rows.length > 0 && rows.every((r) => isRowComplete(r) && !r.error);
+    // Validity is recomputed from the drafts alone: a stored server error
+    // (e.g. a transient network failure) must not lock the Create button
+    // behind an artificial "edit something first".
+    const isValid = rows.length > 0
+        && rows.every((r, i) => isDraftComplete(r) && !validateDraft(r, i, rows));
 
     const handleConfirm = async () => {
         if (!isValid || saving) return;
