@@ -159,7 +159,9 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
             if (removed) setPlaces((prev) => restoreAt(prev, removed, index));
             Alert.alert('Error', `Failed to update: ${res.error}`);
         } else {
-            setCounts((prev) => shiftCount(prev, activeTab, newStatus));
+            // Via ref: the PATCH may resolve after a tab switch and the
+            // closure's activeTab would decrement the wrong badge.
+            setCounts((prev) => shiftCount(prev, activeTabRef.current, newStatus));
         }
     };
 
@@ -190,7 +192,10 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
                 { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'Delete', style: 'destructive', onPress: async () => {
+                        setActionLoading(true);
                         const res = await api(`/admin/places/${placeId}?hard=true`, { method: 'DELETE' });
+                        setActionLoading(false);
+
                         if (res.error) {
                             Alert.alert('Error', (res.errorBody as { error?: string } | null)?.error ?? res.error);
                         } else {

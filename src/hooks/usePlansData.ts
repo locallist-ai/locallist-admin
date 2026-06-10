@@ -25,7 +25,14 @@ export function usePlansData({ mode }: { mode: Mode }) {
 
         const res = await api<PlansResponse>(buildPlansQuery(PAGE_SIZE, offset));
 
-        if (reqId !== requestIdRef.current) return;
+        if (reqId !== requestIdRef.current) {
+            // Superseded mid-flight: the newer request owns the state from
+            // here on, but it won't reset OUR flag, so clear it ourselves
+            // (a stale loadingMore left true would block canLoadMore forever).
+            if (isInitial) setLoading(false);
+            else setLoadingMore(false);
+            return;
+        }
 
         if (res.data) {
             if (isInitial) {
