@@ -52,9 +52,12 @@ describe('runBatchTranslate', () => {
     it('un chunk bueno resetea el contador de errores consecutivos', async () => {
         const seq = [errChunk('x'), errChunk('x'), chunk(1, 0, 0, 1), errChunk('x'), errChunk('x'), chunk(1, 0, 0, 0)];
         let i = 0;
+        const fetchChunk = vi.fn(async () => seq[i++]);
 
-        const result = await runBatchTranslate(async () => seq[i++], new AbortController().signal, vi.fn());
+        const result = await runBatchTranslate(fetchChunk, new AbortController().signal, vi.fn());
 
+        // Sin reset, el tercer error (índice 3) cortaría el loop en 4 llamadas.
+        expect(fetchChunk).toHaveBeenCalledTimes(6);
         expect(result).toEqual({ translated: 2, failed: 0, aborted: false, error: null });
     });
 

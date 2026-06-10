@@ -5,10 +5,13 @@ import {
     StyleSheet,
     Pressable,
     ActivityIndicator,
+    ActionSheetIOS,
     Alert,
+    Platform,
     ScrollView,
     Modal,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { api } from '../../src/lib/api';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { useFilterState } from '../../src/hooks/useFilterState';
@@ -29,6 +32,7 @@ import { CATEGORIES } from '../../src/lib/constants';
 
 export default function DashboardScreen() {
     const { isDesktop } = useBreakpoint();
+    const router = useRouter();
 
     const [mode, setMode] = useState<Mode>('places');
     const filters = useFilterState();
@@ -114,6 +118,35 @@ export default function DashboardScreen() {
         );
     };
 
+    const handleCreatePress = () => {
+        if (mode === 'plans') {
+            router.push('/plans/create');
+            return;
+        }
+        if (Platform.OS === 'ios') {
+            ActionSheetIOS.showActionSheetWithOptions(
+                {
+                    options: ['Cancel', 'Create manually', 'Import from Google', 'Import batch (links/CSV)', 'Backfill descriptions'],
+                    cancelButtonIndex: 0,
+                },
+                (idx) => {
+                    if (idx === 1) router.push('/place/create');
+                    else if (idx === 2) router.push('/places/import-google');
+                    else if (idx === 3) router.push('/places/import-batch');
+                    else if (idx === 4) router.push('/places/backfill-descriptions');
+                }
+            );
+        } else {
+            Alert.alert('Add place', '', [
+                { text: 'Create manually', onPress: () => router.push('/place/create') },
+                { text: 'Import from Google', onPress: () => router.push('/places/import-google') },
+                { text: 'Import batch (links/CSV)', onPress: () => router.push('/places/import-batch') },
+                { text: 'Backfill descriptions', onPress: () => router.push('/places/backfill-descriptions') },
+                { text: 'Cancel', style: 'cancel' },
+            ]);
+        }
+    };
+
     const handleRefresh = async () => {
         setRefreshing(true);
         await Promise.all(refreshTasksFor(mode).map((task) => {
@@ -132,10 +165,10 @@ export default function DashboardScreen() {
         <View style={styles.container}>
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <DashboardHeader
-                    mode={mode}
                     refreshing={refreshing}
                     isDesktop={isDesktop}
                     onRefresh={handleRefresh}
+                    onCreatePress={handleCreatePress}
                 />
 
                 {/* Segment control */}

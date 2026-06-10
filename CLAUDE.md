@@ -35,7 +35,7 @@ npx expo start --dev-client --port 8084
 - `app/(app)/plans/create.tsx` — Plan creation form.
 - `app/(auth)/login.tsx` — Google Sign-In: Firebase popup on web, native SDK on mobile. Domain locked to `@locallist.ai`.
 - `src/components/SwipeCard.tsx` — Gesture-handled card for approving/rejecting places.
-- `src/components/DashboardHeader.tsx` — Logo + refresh / create / logout row; owns the "+ Create" menu per mode.
+- `src/components/DashboardHeader.tsx` — Logo + refresh / create / logout row (presentational; the "+ Create" menu per mode lives in `index.tsx` via `onCreatePress`).
 - `src/components/FilterBar.tsx` — Name search + city chips; exports `FilterChipRow` (reused for the category filter).
 - `src/components/StatusTabs.tsx` — Queue / Published / Rejected tabs with count badges.
 - `src/components/BatchActionsRow.tsx` — Translate / Reindex / Hours actions for published places.

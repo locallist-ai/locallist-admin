@@ -4,7 +4,7 @@
  * la API confirme y restaurar en su posición si la llamada falla.
  */
 import { describe, it, expect } from 'vitest';
-import { moveToFront, removeById, restoreAt, shiftCount } from '../lib/optimisticList';
+import { removeById, restoreAt, shiftCount } from '../lib/optimisticList';
 
 const list = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
 
@@ -44,16 +44,6 @@ describe('restoreAt (rollback)', () => {
         const input = [{ id: 'a' }];
         restoreAt(input, { id: 'b' }, 0);
         expect(input).toEqual([{ id: 'a' }]);
-    });
-});
-
-describe('moveToFront (postpone)', () => {
-    it('mueve el elemento al frente conservando el resto en orden', () => {
-        expect(moveToFront(list, 'c')).toEqual([{ id: 'c' }, { id: 'a' }, { id: 'b' }]);
-    });
-
-    it('id inexistente devuelve la misma lista', () => {
-        expect(moveToFront(list, 'zzz')).toBe(list);
     });
 });
 

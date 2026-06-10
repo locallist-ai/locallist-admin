@@ -27,13 +27,6 @@ export function restoreAt<T>(list: T[], item: T, index: number): T[] {
     return next;
 }
 
-/** Postpone: send the item to the front of the deck (top renders last). */
-export function moveToFront<T extends HasId>(list: T[], id: string): T[] {
-    const item = list.find((i) => i.id === id);
-    if (!item) return list;
-    return [item, ...list.filter((i) => i.id !== id)];
-}
-
 /** Move one unit between status buckets; counts never go negative. */
 export function shiftCount<C extends Record<string, number>>(
     counts: C,

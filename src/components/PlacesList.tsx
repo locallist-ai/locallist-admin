@@ -20,7 +20,7 @@ interface PlacesListProps {
     onApprove: (placeId: string) => void;
     onRejectStart: (placeId: string) => void;
     onPostpone: (placeId: string) => void;
-    onStatusChange: (placeId: string, status: StatusTab) => void;
+    onStatusChange: (placeId: string, status: StatusTab, reason?: string) => void;
     onDelete: (placeId: string) => void;
 }
 
