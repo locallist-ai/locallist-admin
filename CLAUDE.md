@@ -23,6 +23,16 @@ npm install
 npx expo start --dev-client --port 8084
 ```
 
+## iOS Builds (EAS local)
+
+```bash
+git add -A && git commit  # EAS reads git HEAD
+npm run build:ios   # production (.ipa)
+npm run build:sim   # preview / simulator (.tar.gz)
+```
+
+Always build through the wrapper (`scripts/build-local.sh`), never raw `eas build`: artifacts land in `builds/<profile>-<date>-<sha>.<ext>` (gitignored) and the wrapper keeps only the 2 most recent per profile.
+
 ## Key Files
 
 - `app/(app)/index.tsx` — Main dashboard (~300 lines of composition). Mode toggle (places / plans) + batch-translate overlay; data lives in `usePlacesData` / `usePlansData` / `useFilterState`, UI in `DashboardHeader`, `FilterBar`, `StatusTabs`, `BatchActionsRow`, `PlacesList`, `PlansList`. Swipe UI only for `in_review` places.
