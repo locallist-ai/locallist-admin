@@ -35,13 +35,13 @@ export function moveToFront<T extends HasId>(list: T[], id: string): T[] {
 }
 
 /** Move one unit between status buckets; counts never go negative. */
-export function shiftCount<K extends string>(
-    counts: Record<K, number>,
-    from: K | null,
-    to: K | null,
-): Record<K, number> {
-    const next = { ...counts };
-    if (from) next[from] = Math.max(0, next[from] - 1);
-    if (to) next[to] = next[to] + 1;
-    return next;
+export function shiftCount<C extends Record<string, number>>(
+    counts: C,
+    from: keyof C | null,
+    to: keyof C | null,
+): C {
+    const next: Record<string, number> = { ...counts };
+    if (from) next[from as string] = Math.max(0, next[from as string] - 1);
+    if (to) next[to as string] = next[to as string] + 1;
+    return next as C;
 }
