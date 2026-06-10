@@ -1,16 +1,23 @@
 import { ExpoConfig, ConfigContext } from '@expo/config';
-import { execSync } from 'child_process';
+import * as fs from 'fs';
 import * as path from 'path';
+
+// Parseo del plist sin plutil: el build web corre también en Linux (Vercel),
+// donde plutil no existe.
+function readPlistValue(xml: string, key: string): string {
+    const match = xml.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`));
+    if (!match) throw new Error(`GoogleService-Info.plist: falta la clave ${key}`);
+    return match[1];
+}
 
 function readFirebaseConfig() {
     const plistPath = path.join(__dirname, 'GoogleService-Info.plist');
-    const json = JSON.parse(
-        execSync(`plutil -convert json -o - "${plistPath}"`, { encoding: 'utf8' })
-    );
+    const xml = fs.readFileSync(plistPath, 'utf8');
+    const projectId = readPlistValue(xml, 'PROJECT_ID');
     return {
-        apiKey: json.API_KEY as string,
-        authDomain: `${json.PROJECT_ID}.firebaseapp.com`,
-        projectId: json.PROJECT_ID as string,
+        apiKey: readPlistValue(xml, 'API_KEY'),
+        authDomain: `${projectId}.firebaseapp.com`,
+        projectId,
     };
 }
 
