@@ -1,4 +1,4 @@
-export { CATEGORIES, inferSubcategoryFromGoogleTypes } from './taxonomy';
+export { CATEGORIES, getSubcategories, inferSubcategoryFromGoogleTypes } from './taxonomy';
 export type { Category } from './taxonomy';
 
 export const PRICE_RANGES = ['FREE', '$', '$$', '$$$', '$$$$'] as const;

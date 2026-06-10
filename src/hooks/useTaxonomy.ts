@@ -1,15 +1,13 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api';
+import {
+    postSubcategoriesBatch,
+    type BatchCreateResult,
+    type CreateSubcategoryPayload,
+    type SubcategoryItem,
+} from '../lib/subcategories';
 
-export interface SubcategoryItem {
-    id: string;
-    categoryKey: string;
-    key: string;
-    labelEn: string;
-    labelEs: string;
-    createdAt: string;
-    updatedAt: string;
-}
+export type { SubcategoryItem } from '../lib/subcategories';
 
 type ByCategory = Record<string, SubcategoryItem[]>;
 
@@ -24,6 +22,15 @@ interface TaxonomyState {
 let cached: SubcategoryItem[] | null = null;
 let cachedAt: number | null = null;
 const CACHE_MS = 5 * 60 * 1000; // 5 min in-memory
+
+// Every mounted hook instance subscribes its setState here, so a successful
+// fetch from any screen (e.g. creating a subcategory in the place editor)
+// refreshes the pickers everywhere instead of waiting for remount/TTL.
+const subscribers = new Set<(state: TaxonomyState) => void>();
+
+function broadcast(state: TaxonomyState) {
+    for (const notify of subscribers) notify(state);
+}
 
 function buildByCategory(subs: SubcategoryItem[]): ByCategory {
     const result: ByCategory = {};
@@ -55,26 +62,34 @@ export function useTaxonomy() {
         if (res.data) {
             cached = res.data;
             cachedAt = Date.now();
-            setState({ subs: res.data, byCategory: buildByCategory(res.data), loading: false, error: null });
+            // Broadcast (not setState): every mounted instance gets the update
+            broadcast({ subs: res.data, byCategory: buildByCategory(res.data), loading: false, error: null });
         } else {
             setState((prev) => ({ ...prev, loading: false, error: res.error }));
         }
     }, []);
 
-    const createSubcategory = useCallback(async (payload: {
-        categoryKey: string;
-        key: string;
-        labelEn: string;
-        labelEs: string;
-    }): Promise<SubcategoryItem | null> => {
-        const res = await api<SubcategoryItem>('/admin/subcategories', { method: 'POST', body: payload });
-        if (res.data) {
+    // Creates each subcategory individually but refetches the taxonomy only
+    // once at the end. Partial failures are returned, never thrown, so the
+    // caller can keep the rows that did get created.
+    const createSubcategories = useCallback(async (
+        payloads: CreateSubcategoryPayload[],
+    ): Promise<BatchCreateResult> => {
+        const result = await postSubcategoriesBatch(payloads);
+        if (result.created.length > 0) {
             cached = null; // invalidate
             await fetchTaxonomy(true);
-            return res.data;
         }
-        return null;
+        return result;
     }, [fetchTaxonomy]);
+
+    // Subscribe before the initial fetch so its broadcast reaches this instance
+    useEffect(() => {
+        subscribers.add(setState);
+        return () => {
+            subscribers.delete(setState);
+        };
+    }, []);
 
     useEffect(() => {
         fetchTaxonomy();
@@ -85,7 +100,6 @@ export function useTaxonomy() {
         byCategory: state.byCategory,
         loading: state.loading,
         error: state.error,
-        refetch: () => fetchTaxonomy(true),
-        createSubcategory,
+        createSubcategories,
     };
 }

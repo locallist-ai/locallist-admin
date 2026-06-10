@@ -8,7 +8,6 @@ import {
     StyleSheet,
     ActivityIndicator,
     Alert,
-    Platform,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
@@ -90,7 +89,7 @@ export default function ImportBatchScreen() {
             const urls = await parseUrlsFromCsv(file.uri);
             setCsvUrls(urls);
             setCsvFileName(file.name);
-        } catch (err) {
+        } catch {
             Alert.alert('Error', 'Could not read the CSV file.');
         }
     };
@@ -209,7 +208,7 @@ export default function ImportBatchScreen() {
                             autoCorrect={false}
                         />
                         <Text style={styles.hint}>
-                            One URL per line. Use canonical URLs (google.com/maps/place/...) or Place IDs (ChIJ...). Short links (maps.app.goo.gl) don't work — open them in the browser first and copy the full URL.
+                            {`One URL per line. Use canonical URLs (google.com/maps/place/...) or Place IDs (ChIJ...). Short links (maps.app.goo.gl) don't work. Open them in the browser first and copy the full URL.`}
                         </Text>
                         {activeUrls.length > 0 && (
                             <Text style={styles.hint}>{activeUrls.length} URLs detected</Text>

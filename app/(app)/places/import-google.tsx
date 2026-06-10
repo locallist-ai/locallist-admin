@@ -9,13 +9,15 @@ import {
     ActivityIndicator,
     Alert,
     Image,
-    FlatList,
+    ActionSheetIOS,
+    Platform,
+    Modal,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
-import type { GooglePlacePreview, GoogleSearchResponse } from '../../../src/types/place';
-import type { PlaceData } from '../../../src/types/place';
-import { CATEGORIES, inferSubcategoryFromGoogleTypes } from '../../../src/lib/constants';
+import type { GooglePlacePreview, GoogleSearchResponse, PlaceData } from '../../../src/types/place';
+import { CATEGORIES, getSubcategories, inferSubcategoryFromGoogleTypes } from '../../../src/lib/constants';
+import { useTaxonomy } from '../../../src/hooks/useTaxonomy';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 
 export default function ImportGoogleScreen() {
@@ -30,6 +32,24 @@ export default function ImportGoogleScreen() {
     const [searched, setSearched] = useState(false);
     // Per-place subcategory overrides (googlePlaceId → subcategory)
     const [subcategoryOverrides, setSubcategoryOverrides] = useState<Record<string, string | null>>({});
+    // Place whose subcategory is being picked via the modal (non-iOS fallback)
+    const [pickerTarget, setPickerTarget] = useState<string | null>(null);
+    // Live taxonomy from the API, so subcategories created in the place editor
+    // show up here too (the static list only knows the seed taxonomy).
+    const { byCategory } = useTaxonomy();
+
+    const subcategoryOptions = (cat: string): { key: string; label: string }[] => {
+        const dynamic = byCategory[cat] ?? [];
+        if (dynamic.length > 0) return dynamic.map((s) => ({ key: s.key, label: s.labelEn }));
+        // Fallback while the taxonomy hasn't loaded: static labels are also
+        // accepted by the API (it matches key OR labelEn, case-insensitive).
+        return getSubcategories(cat).map((label) => ({ key: label, label }));
+    };
+
+    const subcategoryLabel = (cat: string | null, value: string | null | undefined): string | null => {
+        if (!cat || !value) return value ?? null;
+        return subcategoryOptions(cat).find((o) => o.key === value)?.label ?? value;
+    };
 
     const handleSearch = async () => {
         const q = query.trim();
@@ -69,6 +89,32 @@ export default function ImportGoogleScreen() {
 
     const setSubcategoryOverride = (googlePlaceId: string, sub: string | null) => {
         setSubcategoryOverrides((prev) => ({ ...prev, [googlePlaceId]: sub }));
+    };
+
+    const openSubcategoryPicker = (googlePlaceId: string) => {
+        if (!category) return;
+        if (Platform.OS === 'ios') {
+            const subs = subcategoryOptions(category);
+            ActionSheetIOS.showActionSheetWithOptions(
+                {
+                    title: 'Subcategory',
+                    options: ['Cancel', 'No subcategory', ...subs.map((s) => s.label)],
+                    cancelButtonIndex: 0,
+                },
+                (idx) => {
+                    if (idx === 1) setSubcategoryOverride(googlePlaceId, null);
+                    else if (idx >= 2) setSubcategoryOverride(googlePlaceId, subs[idx - 2].key);
+                },
+            );
+        } else {
+            // Android/web: Alert can't render 16+ scrollable options — use a modal
+            setPickerTarget(googlePlaceId);
+        }
+    };
+
+    const handlePickerSelect = (sub: string | null) => {
+        if (pickerTarget) setSubcategoryOverride(pickerTarget, sub);
+        setPickerTarget(null);
     };
 
     const handleImport = async () => {
@@ -214,10 +260,10 @@ export default function ImportGoogleScreen() {
                                     place={place}
                                     isSelected={selected.has(place.googlePlaceId)}
                                     onToggle={() => !place.existsInLib && toggleSelect(place.googlePlaceId)}
-                                    suggestedSubcategory={activeSub}
-                                    onSubcategoryChange={
+                                    suggestedSubcategory={subcategoryLabel(category, activeSub)}
+                                    onEditSubcategory={
                                         category
-                                            ? (sub) => setSubcategoryOverride(place.googlePlaceId, sub)
+                                            ? () => openSubcategoryPicker(place.googlePlaceId)
                                             : undefined
                                     }
                                 />
@@ -245,6 +291,37 @@ export default function ImportGoogleScreen() {
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+
+            {/* Subcategory picker (non-iOS fallback, scrollable) */}
+            <Modal
+                visible={pickerTarget !== null}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setPickerTarget(null)}
+            >
+                <Pressable style={styles.pickerOverlay} onPress={() => setPickerTarget(null)}>
+                    <Pressable style={styles.pickerCard} onPress={() => {}}>
+                        <Text style={styles.pickerTitle}>Subcategory</Text>
+                        <ScrollView style={styles.pickerList}>
+                            <Pressable style={styles.pickerOption} onPress={() => handlePickerSelect(null)}>
+                                <Text style={styles.pickerOptionMuted}>No subcategory</Text>
+                            </Pressable>
+                            {(category ? subcategoryOptions(category) : []).map((sub) => (
+                                <Pressable
+                                    key={sub.key}
+                                    style={styles.pickerOption}
+                                    onPress={() => handlePickerSelect(sub.key)}
+                                >
+                                    <Text style={styles.pickerOptionText}>{sub.label}</Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                        <Pressable style={styles.pickerCancel} onPress={() => setPickerTarget(null)}>
+                            <Text style={styles.pickerCancelText}>Cancel</Text>
+                        </Pressable>
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </>
     );
 }
@@ -254,13 +331,13 @@ function PlaceResultCard({
     isSelected,
     onToggle,
     suggestedSubcategory,
-    onSubcategoryChange,
+    onEditSubcategory,
 }: {
     place: GooglePlacePreview;
     isSelected: boolean;
     onToggle: () => void;
     suggestedSubcategory?: string | null;
-    onSubcategoryChange?: (sub: string | null) => void;
+    onEditSubcategory?: () => void;
 }) {
     const thumb = place.photos[0];
     return (
@@ -302,12 +379,14 @@ function PlaceResultCard({
                     {place.priceLevel != null && (
                         <Text style={styles.metaText}>{place.priceLevel}</Text>
                     )}
-                    {suggestedSubcategory && onSubcategoryChange && !place.existsInLib && (
+                    {onEditSubcategory && !place.existsInLib && (
                         <Pressable
                             style={styles.subBadge}
-                            onPress={(e) => { e.stopPropagation?.(); onSubcategoryChange(suggestedSubcategory ? null : null); }}
+                            onPress={(e) => { e.stopPropagation?.(); onEditSubcategory(); }}
                         >
-                            <Text style={styles.subBadgeText}>{suggestedSubcategory} ✎</Text>
+                            <Text style={styles.subBadgeText}>
+                                {suggestedSubcategory ? `${suggestedSubcategory} ✎` : '+ subcategory'}
+                            </Text>
                         </Pressable>
                     )}
                 </View>
@@ -396,4 +475,27 @@ const styles = StyleSheet.create({
         borderRadius: 10, marginLeft: 4,
     },
     subBadgeText: { fontSize: 10, fontFamily: fonts.bodySemiBold, color: '#6366f1' },
+    pickerOverlay: {
+        flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        justifyContent: 'center', alignItems: 'center', padding: spacing.lg,
+    },
+    pickerCard: {
+        backgroundColor: colors.bgCard, borderRadius: borderRadius.lg, padding: spacing.lg,
+        width: '100%', maxWidth: 400, maxHeight: '70%',
+    },
+    pickerTitle: {
+        fontSize: 17, fontFamily: fonts.bodySemiBold, color: colors.textMain,
+        marginBottom: spacing.sm,
+    },
+    // Numeric maxHeight on the list itself: percentage clamps on the card can
+    // fail to bound the ScrollView on large screens, leaving it unscrollable.
+    // flexShrink still lets it shrink further when the card hits its own clamp.
+    pickerList: { flexGrow: 0, flexShrink: 1, maxHeight: 380 },
+    pickerOption: {
+        paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.borderColor,
+    },
+    pickerOptionText: { fontSize: 15, fontFamily: fonts.body, color: colors.textMain },
+    pickerOptionMuted: { fontSize: 15, fontFamily: fonts.body, color: colors.textSecondary, fontStyle: 'italic' },
+    pickerCancel: { alignItems: 'center', paddingTop: spacing.md },
+    pickerCancelText: { fontSize: 15, fontFamily: fonts.bodySemiBold, color: colors.textSecondary },
 });

@@ -43,43 +43,57 @@ export async function api<T>(
 
     if (token) requestHeaders['Authorization'] = `Bearer ${token}`;
 
-    let attempt = 0;
-    while (attempt <= MAX_RETRIES) {
-        if (externalSignal?.aborted) return { data: null, error: 'cancelled', errorBody: null, status: 0 };
-        const controller = new AbortController();
-        externalSignal?.addEventListener('abort', () => controller.abort());
-        const timeout = setTimeout(() => controller.abort(), timeoutMs);
-        try {
-            const res = await fetch(`${apiUrl}${path}`, {
-                method,
-                headers: requestHeaders,
-                body: body ? JSON.stringify(body) : undefined,
-                signal: controller.signal,
-            });
-            clearTimeout(timeout);
-
-            const json = await res.json().catch(() => null);
-
-            if (!res.ok) {
-                if (res.status >= 500 && attempt < MAX_RETRIES) {
-                    attempt++;
-                    continue;
-                }
-                return {
-                    data: null,
-                    error: json?.error ?? `HTTP ${res.status}`,
-                    errorBody: json,
-                    status: res.status,
-                };
-            }
-
-            return { data: json as T, error: null, errorBody: null, status: res.status };
-        } catch (err: unknown) {
-            clearTimeout(timeout);
-            const message = err instanceof Error ? err.message : 'Network error';
-            return { data: null, error: message, errorBody: null, status: 0 };
-        }
+    // One controller per call (not per retry attempt) so the external signal
+    // gets exactly one listener, removed in the finally below. An already-aborted
+    // signal never fires 'abort', so propagate that state explicitly.
+    const controller = new AbortController();
+    const onExternalAbort = () => controller.abort();
+    if (externalSignal?.aborted) {
+        controller.abort();
+    } else {
+        externalSignal?.addEventListener('abort', onExternalAbort, { once: true });
     }
 
-    return { data: null, error: 'Max retries exceeded', errorBody: null, status: 0 };
+    try {
+        let attempt = 0;
+        while (attempt <= MAX_RETRIES) {
+            if (controller.signal.aborted) return { data: null, error: 'cancelled', errorBody: null, status: 0 };
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const res = await fetch(`${apiUrl}${path}`, {
+                    method,
+                    headers: requestHeaders,
+                    body: body ? JSON.stringify(body) : undefined,
+                    signal: controller.signal,
+                });
+                clearTimeout(timeout);
+
+                const json = await res.json().catch(() => null);
+
+                if (!res.ok) {
+                    if (res.status >= 500 && attempt < MAX_RETRIES) {
+                        attempt++;
+                        continue;
+                    }
+                    return {
+                        data: null,
+                        // `||` (not `??`): an empty-string error body must still fall back
+                        error: json?.error || `HTTP ${res.status}`,
+                        errorBody: json,
+                        status: res.status,
+                    };
+                }
+
+                return { data: json as T, error: null, errorBody: null, status: res.status };
+            } catch (err: unknown) {
+                clearTimeout(timeout);
+                const message = err instanceof Error ? err.message : 'Network error';
+                return { data: null, error: message, errorBody: null, status: 0 };
+            }
+        }
+
+        return { data: null, error: 'Max retries exceeded', errorBody: null, status: 0 };
+    } finally {
+        externalSignal?.removeEventListener('abort', onExternalAbort);
+    }
 }
