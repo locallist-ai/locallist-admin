@@ -22,6 +22,9 @@ import {
 export type { SubcategoryDraft } from '../lib/subcategories';
 
 interface DraftRow extends SubcategoryDraft {
+    /** Stable identity for React keys: rows are removable, so index keys
+     *  would re-associate input state with the wrong row after a removal. */
+    id: number;
     error: string;
 }
 
@@ -35,7 +38,8 @@ interface AddSubcategoryModalProps {
     onClose: () => void;
 }
 
-const emptyRow = (): DraftRow => ({ key: '', labelEn: '', labelEs: '', error: '' });
+let rowSeq = 0;
+const emptyRow = (): DraftRow => ({ id: ++rowSeq, key: '', labelEn: '', labelEs: '', error: '' });
 
 export default function AddSubcategoryModal({
     visible,
@@ -124,13 +128,14 @@ export default function AddSubcategoryModal({
         // Keep only the failed rows, each with its own error, so the user
         // can fix and retry without retyping.
         setRows(result.failures.map((f) => ({
+            id: ++rowSeq,
             key: f.payload.key,
             labelEn: f.payload.labelEn,
             labelEs: f.payload.labelEs,
             error: f.message,
         })));
         if (result.created.length > 0) {
-            setSubmitError(`${result.created.length} created. The rows below failed — fix and retry.`);
+            setSubmitError(`${result.created.length} created. The rows below failed. Fix and retry.`);
         }
         setSaving(false);
     };
@@ -149,7 +154,7 @@ export default function AddSubcategoryModal({
 
                     <ScrollView style={styles.rowList} keyboardShouldPersistTaps="handled">
                         {rows.map((row, index) => (
-                            <View key={index} style={styles.rowCard}>
+                            <View key={row.id} style={styles.rowCard}>
                                 {rows.length > 1 && (
                                     <Pressable
                                         style={styles.removeBtn}

@@ -127,6 +127,20 @@ describe('getDirtyFields', () => {
         expect(getDirtyFields(original, form)).toEqual({ visitDurationMin: 90 });
     });
 
+    // Mismo drift de DTO que lat/lon: si el backend devolviera la duración
+    // como string, la comparación estricta marcaría un PATCH espurio.
+    it('visitDurationMin string "45" vs number 45 NO es dirty (coerción numérica)', () => {
+        const original = { ...basePlace, visitDurationMin: '45' as unknown as number } as PlaceData;
+        const form: Partial<PlaceData> = { ...original, visitDurationMin: 45 };
+        expect(getDirtyFields(original, form)).not.toHaveProperty('visitDurationMin');
+    });
+
+    it('visitDurationMin null en ambos lados no marca dirty', () => {
+        const original = { ...basePlace, visitDurationMin: null } as PlaceData;
+        const form: Partial<PlaceData> = { ...original };
+        expect(getDirtyFields(original, form)).toEqual({});
+    });
+
     it('detecta cambios en los campos i18n ES', () => {
         const original = { ...basePlace, nameEs: null, subcategoriesEs: null } as PlaceData;
         const form: Partial<PlaceData> = {

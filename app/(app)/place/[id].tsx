@@ -231,7 +231,7 @@ export default function PlaceEditScreen() {
                                     <>
                                         {legacyItems.length > 0 && (
                                             <Text style={styles.legacySubcategoryWarning}>
-                                                {`Legacy: "${legacyItems.join(', ')}" — pick canonical below`}
+                                                {`Legacy: "${legacyItems.join(', ')}". Pick canonical below.`}
                                             </Text>
                                         )}
                                         {dynamicSubs.length === 0 && legacyItems.length === 0 && (

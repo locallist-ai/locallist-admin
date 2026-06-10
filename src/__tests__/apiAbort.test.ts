@@ -73,20 +73,51 @@ describe('api — abort signal handling', () => {
 
     it('aborting the external signal mid-flight cancels the request', async () => {
         const controller = new AbortController();
-        vi.stubGlobal('fetch', vi.fn().mockImplementation((_url: string, init: RequestInit) =>
+        // Resolve `started` once fetch is actually in flight, so the abort is
+        // genuinely mid-flight (aborting earlier takes the pre-aborted path).
+        let onFetchStarted!: () => void;
+        const started = new Promise<void>((resolve) => { onFetchStarted = resolve; });
+        const fetchMock = vi.fn().mockImplementation((_url: string, init: RequestInit) =>
+            new Promise((_resolve, reject) => {
+                onFetchStarted();
+                init.signal?.addEventListener('abort', () =>
+                    reject(new DOMException('The operation was aborted.', 'AbortError')),
+                );
+            }),
+        );
+        vi.stubGlobal('fetch', fetchMock);
+
+        const { api } = await import('../lib/api');
+        const pending = api('/admin/places', { signal: controller.signal });
+        await started;
+        controller.abort();
+        const res = await pending;
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(res.data).toBeNull();
+        expect(res.status).toBe(0);
+        // The abort reason must surface to the caller, not get swallowed.
+        expect(res.error).toBe('The operation was aborted.');
+    });
+
+    it('a request exceeding timeoutMs aborts itself and does not retry', async () => {
+        // fetch never resolves on its own; it only rejects when the client's
+        // internal timeout fires controller.abort().
+        const fetchMock = vi.fn().mockImplementation((_url: string, init: RequestInit) =>
             new Promise((_resolve, reject) => {
                 init.signal?.addEventListener('abort', () =>
                     reject(new DOMException('The operation was aborted.', 'AbortError')),
                 );
             }),
-        ));
+        );
+        vi.stubGlobal('fetch', fetchMock);
 
         const { api } = await import('../lib/api');
-        const pending = api('/admin/places', { signal: controller.signal });
-        controller.abort();
-        const res = await pending;
+        const res = await api('/admin/places', { timeoutMs: 20 });
 
         expect(res.data).toBeNull();
         expect(res.status).toBe(0);
+        expect(res.error).toBe('The operation was aborted.');
+        expect(fetchMock).toHaveBeenCalledTimes(1); // a timeout is terminal, never retried
     });
 });
