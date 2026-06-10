@@ -20,13 +20,20 @@ type Props = {
  */
 export default function OptionsMenuModal({ visible, title, options, onClose }: Props) {
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+        <Modal
+            visible={visible}
+            transparent
+            animationType="fade"
+            onRequestClose={onClose}
+            accessibilityViewIsModal
+        >
             <Pressable style={styles.overlay} onPress={onClose}>
                 <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
                     <Text style={styles.title}>{title}</Text>
                     {options.map((opt) => (
                         <Pressable
                             key={opt.label}
+                            accessibilityRole="button"
                             style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
                             onPress={() => { onClose(); opt.onSelect(); }}
                         >
@@ -34,6 +41,7 @@ export default function OptionsMenuModal({ visible, title, options, onClose }: P
                         </Pressable>
                     ))}
                     <Pressable
+                        accessibilityRole="button"
                         style={({ pressed }) => [styles.cancel, pressed && styles.optionPressed]}
                         onPress={onClose}
                     >

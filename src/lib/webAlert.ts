@@ -42,8 +42,9 @@ export function runWebAlert(
     }
 
     // Dos o más botones: confirm(). La acción primaria es el primer botón
-    // no-cancel; con más de dos botones el resto se pierde, así que los
-    // call sites con menús de varias opciones deben usar un modal propio.
+    // no-cancel; con 2+ botones de acción (sin style 'cancel') del segundo
+    // en adelante se pierden, así que los call sites con menús de varias
+    // opciones deben usar un modal propio (OptionsMenuModal).
     const action = buttons.find((b) => b.style !== 'cancel') ?? buttons[buttons.length - 1];
     const cancel = buttons.find((b) => b.style === 'cancel');
 

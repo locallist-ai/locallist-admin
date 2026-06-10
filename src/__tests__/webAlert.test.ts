@@ -7,7 +7,6 @@ function makeIo(confirmResult = true) {
             alert: vi.fn(),
             confirm: vi.fn(() => confirmResult),
         },
-        calls: { alert: [] as string[] },
     };
 }
 
