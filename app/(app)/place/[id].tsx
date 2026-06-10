@@ -430,7 +430,7 @@ export default function PlaceEditScreen() {
                         ))}
                     </View>
 
-                    <FieldLabel label="Visit Duration (min) — overrides category default" />
+                    <FieldLabel label="Visit Duration (min), overrides category default" />
                     <TextInput
                         style={styles.input}
                         value={form.visitDurationMin != null ? form.visitDurationMin.toString() : ''}
@@ -605,7 +605,7 @@ function MetadataRow({ label, value }: { label: string; value?: string | null })
     return (
         <View style={styles.metaRow}>
             <Text style={styles.metaLabel}>{label}</Text>
-            <Text style={styles.metaValue}>{value ?? '—'}</Text>
+            <Text style={styles.metaValue}>{value ?? 'N/A'}</Text>
         </View>
     );
 }

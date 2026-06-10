@@ -141,7 +141,7 @@ export default function BackfillDescriptionsScreen() {
                                 <>
                                     <ResultRow label="Would fetch from Google" value={(result as DryRunResult).wouldFetchGoogle} color={colors.successEmerald} />
                                     <ResultRow label="Would fallback to Gemini" value={(result as DryRunResult).wouldFallbackGemini} color={colors.electricBlue} />
-                                    <Text style={styles.dryRunNote}>Dry run — no changes written.</Text>
+                                    <Text style={styles.dryRunNote}>Dry run. No changes written.</Text>
                                 </>
                             ) : (
                                 <>
