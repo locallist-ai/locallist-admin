@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { api } from '../lib/api';
 import { buildPlansQuery, canLoadMore, PAGE_SIZE, type Mode } from '../lib/dashboardQueries';
@@ -13,13 +13,19 @@ export function usePlansData({ mode }: { mode: Mode }) {
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
+    // Monotonic id so a stale response can never clobber a newer one.
+    const requestIdRef = useRef(0);
 
     const loadPlans = useCallback(async (offset = 0) => {
         const isInitial = offset === 0;
         if (isInitial) setLoading(true);
         else setLoadingMore(true);
 
+        const reqId = ++requestIdRef.current;
+
         const res = await api<PlansResponse>(buildPlansQuery(PAGE_SIZE, offset));
+
+        if (reqId !== requestIdRef.current) return;
 
         if (res.data) {
             if (isInitial) {

@@ -134,7 +134,10 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
         // be silently dropped.
         setPlaces((prev) => [removed, ...prev.filter((p) => p.id !== placeId)]);
 
+        setActionLoading(true);
         const res = await api(`/admin/places/${placeId}/postpone`, { method: 'PATCH' });
+        setActionLoading(false);
+
         if (res.error) {
             setPlaces((prev) => restoreAt(prev.filter((p) => p.id !== placeId), removed, index));
             Alert.alert('Error', `Failed to postpone: ${res.error}`);
@@ -148,7 +151,9 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
         const body: Record<string, string> = { status: newStatus };
         if (reason) body.rejectionReason = reason;
 
+        setActionLoading(true);
         const res = await api(`/admin/places/${placeId}/review`, { method: 'PATCH', body });
+        setActionLoading(false);
 
         if (res.error) {
             if (removed) setPlaces((prev) => restoreAt(prev, removed, index));

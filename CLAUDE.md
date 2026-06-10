@@ -60,7 +60,7 @@ npx expo start --dev-client --port 8084
 - `src/hooks/useTaxonomy.ts` — Hook for loading taxonomy data.
 - `src/hooks/useFilterState.ts` — Dashboard filters: city, category, debounced name search.
 - `src/hooks/usePlacesData.ts` — Places list + pagination + badge counts + optimistic mutations with rollback.
-- `src/hooks/usePlansData.ts` — Plans list + pagination + unpublish/delete.
+- `src/hooks/usePlansData.ts` — Plans list + pagination + unpublish/delete. Race-guarded with a monotonic request id (parity with `usePlacesData`).
 - `src/types/place.ts` — `PlaceData`, `PlacesResponse` types.
 - `src/types/plan.ts` — `PlanData`, `PlansResponse` types.
 
