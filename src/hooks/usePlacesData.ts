@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import { api } from '../lib/api';
 import {
     buildPlacesQuery,
@@ -72,7 +72,7 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
                 setCounts((prev) => ({ ...prev, [status]: res.data!.total }));
             }
         } else if (res.error) {
-            Alert.alert('Error', `Failed to load places: ${res.error}`);
+            showAlert('Error', `Failed to load places: ${res.error}`);
         }
 
         if (isInitial) setLoading(false);
@@ -120,7 +120,7 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
 
         if (res.error) {
             if (removed) setPlaces((prev) => restoreAt(prev, removed, index));
-            Alert.alert('Error', `Failed to approve: ${res.error}`);
+            showAlert('Error', `Failed to approve: ${res.error}`);
         } else {
             setCounts((prev) => shiftCount(prev, 'in_review', 'published'));
         }
@@ -140,7 +140,7 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
 
         if (res.error) {
             setPlaces((prev) => restoreAt(prev.filter((p) => p.id !== placeId), removed, index));
-            Alert.alert('Error', `Failed to postpone: ${res.error}`);
+            showAlert('Error', `Failed to postpone: ${res.error}`);
         }
     };
 
@@ -157,7 +157,7 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
 
         if (res.error) {
             if (removed) setPlaces((prev) => restoreAt(prev, removed, index));
-            Alert.alert('Error', `Failed to update: ${res.error}`);
+            showAlert('Error', `Failed to update: ${res.error}`);
         } else {
             // Via ref: the PATCH may resolve after a tab switch and the
             // closure's activeTab would decrement the wrong badge.
@@ -178,14 +178,14 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
 
         if (res.error) {
             if (removed) setPlaces((prev) => restoreAt(prev, removed, index));
-            Alert.alert('Error', `Failed to reject: ${res.error}`);
+            showAlert('Error', `Failed to reject: ${res.error}`);
         } else {
             setCounts((prev) => shiftCount(prev, 'in_review', 'rejected'));
         }
     };
 
     const deletePlace = (placeId: string) => {
-        Alert.alert(
+        showAlert(
             'Delete Place',
             'This will permanently delete the place. This cannot be undone.',
             [
@@ -197,7 +197,7 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
                         setActionLoading(false);
 
                         if (res.error) {
-                            Alert.alert('Error', (res.errorBody as { error?: string } | null)?.error ?? res.error);
+                            showAlert('Error', (res.errorBody as { error?: string } | null)?.error ?? res.error);
                         } else {
                             setPlaces((prev) => prev.filter((p) => p.id !== placeId));
                             setCounts((prev) => shiftCount(prev, activeTabRef.current, null));

@@ -7,12 +7,12 @@ import {
     Pressable,
     StyleSheet,
     ActivityIndicator,
-    Alert,
     Image,
     ActionSheetIOS,
     Platform,
     Modal,
 } from 'react-native';
+import { showAlert } from '../../../src/lib/dialogs';
 import { useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import type { GooglePlacePreview, GoogleSearchResponse, PlaceData } from '../../../src/types/place';
@@ -54,7 +54,7 @@ export default function ImportGoogleScreen() {
     const handleSearch = async () => {
         const q = query.trim();
         if (!q) {
-            Alert.alert('Required', 'Enter a keyword to search.');
+            showAlert('Required', 'Enter a keyword to search.');
             return;
         }
         setLoading(true);
@@ -74,7 +74,7 @@ export default function ImportGoogleScreen() {
         if (res.data) {
             setResults(res.data.results);
         } else {
-            Alert.alert('Error', res.error ?? 'Search failed. Check that the Google Places API key is configured.');
+            showAlert('Error', res.error ?? 'Search failed. Check that the Google Places API key is configured.');
         }
     };
 
@@ -120,7 +120,7 @@ export default function ImportGoogleScreen() {
     const handleImport = async () => {
         if (selected.size === 0) return;
         if (!category) {
-            Alert.alert('Required', 'Choose a category before importing.');
+            showAlert('Required', 'Choose a category before importing.');
             return;
         }
 
@@ -151,7 +151,7 @@ export default function ImportGoogleScreen() {
             });
 
         if (toImport.length === 0) {
-            Alert.alert('Nothing to import', 'All selected places are already in the library.');
+            showAlert('Nothing to import', 'All selected places are already in the library.');
             return;
         }
 
@@ -161,13 +161,13 @@ export default function ImportGoogleScreen() {
 
         if (res.data) {
             const { created, skipped, errors } = res.data as { created: number; skipped: number; errors: number };
-            Alert.alert(
+            showAlert(
                 'Import complete',
                 `${created} added · ${skipped} skipped (already exists) · ${errors} errors`,
                 [{ text: 'Done', onPress: () => router.back() }]
             );
         } else {
-            Alert.alert('Error', res.error ?? 'Import failed.');
+            showAlert('Error', res.error ?? 'Import failed.');
         }
     };
 

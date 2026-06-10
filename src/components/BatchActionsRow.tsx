@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Alert, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import { api } from '../lib/api';
 import { colors, fonts, spacing, borderRadius } from '../lib/theme';
 
@@ -19,7 +20,7 @@ export default function BatchActionsRow({ translateDisabled, onTranslate }: Batc
     const [backfillingHours, setBackfillingHours] = useState(false);
 
     const handleReindex = () => {
-        Alert.alert(
+        showAlert(
             'Reindex Embeddings',
             'This regenerates vector embeddings for all published places. Takes ~30s. Continue?',
             [
@@ -34,9 +35,9 @@ export default function BatchActionsRow({ translateDisabled, onTranslate }: Batc
                         );
                         setReindexing(false);
                         if (res.data) {
-                            Alert.alert('Done', `Reindexed: ${res.data.reindexed}/${res.data.total}`);
+                            showAlert('Done', `Reindexed: ${res.data.reindexed}/${res.data.total}`);
                         } else {
-                            Alert.alert('Error', `Reindex failed: ${res.error}`);
+                            showAlert('Error', `Reindex failed: ${res.error}`);
                         }
                     },
                 },
@@ -45,7 +46,7 @@ export default function BatchActionsRow({ translateDisabled, onTranslate }: Batc
     };
 
     const handleBackfillHours = () => {
-        Alert.alert(
+        showAlert(
             'Backfill Opening Hours',
             'Fetches opening hours from Google for all places missing them. May take a while. Continue?',
             [
@@ -60,9 +61,9 @@ export default function BatchActionsRow({ translateDisabled, onTranslate }: Batc
                         );
                         setBackfillingHours(false);
                         if (res.data) {
-                            Alert.alert('Done', `Backfilled: ${res.data.backfilled}/${res.data.total} (${res.data.failed} failed)`);
+                            showAlert('Done', `Backfilled: ${res.data.backfilled}/${res.data.total} (${res.data.failed} failed)`);
                         } else {
-                            Alert.alert('Error', `Backfill failed: ${res.error}`);
+                            showAlert('Error', `Backfill failed: ${res.error}`);
                         }
                     },
                 },

@@ -7,9 +7,9 @@ import {
     Pressable,
     StyleSheet,
     ActivityIndicator,
-    Alert,
     Switch,
 } from 'react-native';
+import { showAlert } from '../../../src/lib/dialogs';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import type { PlanData } from '../../../src/types/plan';
@@ -94,7 +94,7 @@ export default function PlanEditScreen() {
             setStops(loadedStops);
             originalStopsRef.current = JSON.stringify(loadedStops);
         } else {
-            Alert.alert('Error', `Failed to load plan: ${res.error}`);
+            showAlert('Error', `Failed to load plan: ${res.error}`);
         }
         setLoading(false);
     }, [id]);
@@ -118,7 +118,7 @@ export default function PlanEditScreen() {
         const hasStopChanges = stopsChanged();
 
         if (!hasMetaChanges && !hasStopChanges) {
-            Alert.alert('No changes', 'Nothing to save.');
+            showAlert('No changes', 'Nothing to save.');
             return;
         }
 
@@ -131,7 +131,7 @@ export default function PlanEditScreen() {
             });
             if (res.error) {
                 setSaving(false);
-                Alert.alert('Error', `Failed to update plan: ${res.error}`);
+                showAlert('Error', `Failed to update plan: ${res.error}`);
                 return;
             }
         }
@@ -151,25 +151,25 @@ export default function PlanEditScreen() {
             });
             if (res.error) {
                 setSaving(false);
-                Alert.alert('Error', `Failed to update stops: ${res.error}`);
+                showAlert('Error', `Failed to update stops: ${res.error}`);
                 return;
             }
         }
 
         setSaving(false);
-        Alert.alert('Saved', 'Plan updated successfully.');
+        showAlert('Saved', 'Plan updated successfully.');
         // Refresh to sync with server
         await loadPlan();
     };
 
     const handleDelete = () => {
-        Alert.alert('Delete Plan', 'Are you sure? This cannot be undone.', [
+        showAlert('Delete Plan', 'Are you sure? This cannot be undone.', [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Delete', style: 'destructive', onPress: async () => {
                     const res = await api(`/admin/plans/${id}`, { method: 'DELETE' });
                     if (res.error) {
-                        Alert.alert('Error', `Failed to delete: ${res.error}`);
+                        showAlert('Error', `Failed to delete: ${res.error}`);
                     } else {
                         router.back();
                     }
@@ -189,14 +189,14 @@ export default function PlanEditScreen() {
                 descriptionEs: res.data!.descriptionEs ?? f.descriptionEs,
             }));
         } else {
-            Alert.alert('Error', `Translation failed: ${res.error}`);
+            showAlert('Error', `Translation failed: ${res.error}`);
         }
     };
 
     const handleAddStop = (place: PlaceData) => {
         const dayStops = stops.filter(s => s.dayNumber === addDay);
         if (dayStops.length >= MAX_STOPS_PER_DAY) {
-            Alert.alert('Limit reached', `Maximum ${MAX_STOPS_PER_DAY} places per day.`);
+            showAlert('Limit reached', `Maximum ${MAX_STOPS_PER_DAY} places per day.`);
             return;
         }
         const newStop: LocalStop = {

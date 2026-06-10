@@ -7,9 +7,9 @@ import {
     Pressable,
     StyleSheet,
     ActivityIndicator,
-    Alert,
     Switch,
 } from 'react-native';
+import { showAlert } from '../../../src/lib/dialogs';
 import { useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import type { PlanData } from '../../../src/types/plan';
@@ -33,7 +33,7 @@ export default function PlanCreateScreen() {
 
     const handleCreate = async () => {
         if (!name.trim()) {
-            Alert.alert('Required', 'Plan name is required.');
+            showAlert('Required', 'Plan name is required.');
             return;
         }
 
@@ -55,10 +55,10 @@ export default function PlanCreateScreen() {
         setSaving(false);
 
         if (res.data) {
-            Alert.alert('Created', `Plan "${res.data.name}" created.`);
+            showAlert('Created', `Plan "${res.data.name}" created.`);
             router.replace(`/plans/${res.data.id}`);
         } else {
-            Alert.alert('Error', `Failed to create: ${res.error}`);
+            showAlert('Error', `Failed to create: ${res.error}`);
         }
     };
 

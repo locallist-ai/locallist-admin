@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { showAlert } from '../lib/dialogs';
 import { api } from '../lib/api';
 import { buildPlansQuery, canLoadMore, PAGE_SIZE, type Mode } from '../lib/dashboardQueries';
 import type { PlanData, PlansResponse } from '../types/plan';
@@ -42,7 +42,7 @@ export function usePlansData({ mode }: { mode: Mode }) {
             }
             setTotal(res.data.total);
         } else if (res.error) {
-            Alert.alert('Error', `Failed to load plans: ${res.error}`);
+            showAlert('Error', `Failed to load plans: ${res.error}`);
         }
 
         if (isInitial) setLoading(false);
@@ -62,13 +62,13 @@ export function usePlansData({ mode }: { mode: Mode }) {
         setPlans((prev) => prev.filter((p) => p.id !== planId));
         const res = await api(`/admin/plans/${planId}`, { method: 'PATCH', body: { isPublic: false } });
         if (res.error) {
-            Alert.alert('Error', `Failed to unpublish: ${res.error}`);
+            showAlert('Error', `Failed to unpublish: ${res.error}`);
             loadPlans();
         }
     };
 
     const deletePlan = (planId: string) => {
-        Alert.alert(
+        showAlert(
             'Delete Plan',
             'This will permanently delete the plan. This cannot be undone.',
             [
@@ -77,7 +77,7 @@ export function usePlansData({ mode }: { mode: Mode }) {
                     text: 'Delete', style: 'destructive', onPress: async () => {
                         const res = await api(`/admin/plans/${planId}`, { method: 'DELETE' });
                         if (res.error) {
-                            Alert.alert('Error', `Failed to delete: ${res.error}`);
+                            showAlert('Error', `Failed to delete: ${res.error}`);
                         } else {
                             setPlans((prev) => prev.filter((p) => p.id !== planId));
                             setTotal((prev) => Math.max(0, prev - 1));

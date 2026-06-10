@@ -7,8 +7,8 @@ import {
     Pressable,
     StyleSheet,
     ActivityIndicator,
-    Alert,
 } from 'react-native';
+import { showAlert } from '../../../src/lib/dialogs';
 import { Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
@@ -48,12 +48,12 @@ export default function BackfillDescriptionsScreen() {
         if (res.data) {
             setResult(res.data);
         } else {
-            Alert.alert('Error', res.error ?? 'Request failed.');
+            showAlert('Error', res.error ?? 'Request failed.');
         }
     };
 
     const handleRun = () => {
-        Alert.alert(
+        showAlert(
             'Run backfill',
             `This will fetch descriptions for up to ${parsedLimit} places and write to the database. Continue?`,
             [
@@ -74,7 +74,7 @@ export default function BackfillDescriptionsScreen() {
         if (res.data) {
             setResult(res.data);
         } else {
-            Alert.alert('Error', res.error ?? 'Request failed.');
+            showAlert('Error', res.error ?? 'Request failed.');
         }
     };
 
