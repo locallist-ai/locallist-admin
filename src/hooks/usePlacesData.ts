@@ -38,6 +38,10 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
     // Monotonic ids so a stale response can never clobber a newer one.
     const requestIdRef = useRef(0);
     const countsRequestIdRef = useRef(0);
+    // Read by deferred callbacks (e.g. the delete confirm) so they see the
+    // tab at confirm time, not the one captured when the dialog opened.
+    const activeTabRef = useRef(activeTab);
+    activeTabRef.current = activeTab;
 
     const loadPlaces = useCallback(async (status: StatusTab, offset = 0) => {
         const isInitial = offset === 0;
@@ -186,7 +190,7 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
                             Alert.alert('Error', (res.errorBody as { error?: string } | null)?.error ?? res.error);
                         } else {
                             setPlaces((prev) => prev.filter((p) => p.id !== placeId));
-                            setCounts((prev) => shiftCount(prev, activeTab, null));
+                            setCounts((prev) => shiftCount(prev, activeTabRef.current, null));
                         }
                     },
                 },
