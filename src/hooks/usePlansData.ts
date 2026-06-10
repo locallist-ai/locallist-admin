@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { showAlert } from '../lib/dialogs';
 import { api } from '../lib/api';
 import { buildPlansQuery, canLoadMore, PAGE_SIZE, type Mode } from '../lib/dashboardQueries';
+import { shouldApplyResponse, staleResetsLoadingMore } from '../lib/raceGuard';
 import type { PlanData, PlansResponse } from '../types/plan';
 
 /**
@@ -25,12 +26,13 @@ export function usePlansData({ mode }: { mode: Mode }) {
 
         const res = await api<PlansResponse>(buildPlansQuery(PAGE_SIZE, offset));
 
-        if (reqId !== requestIdRef.current) {
-            // Superseded mid-flight: the newer request owns the state from
-            // here on, but it won't reset OUR flag, so clear it ourselves
-            // (a stale loadingMore left true would block canLoadMore forever).
-            if (isInitial) setLoading(false);
-            else setLoadingMore(false);
+        if (!shouldApplyResponse(reqId, requestIdRef.current)) {
+            // Superseded mid-flight: the winner owns `loading` and clears it
+            // when it finishes — touching it here would hide the winner's
+            // spinner while it is still in flight (StrictMode double-fire).
+            // Only a stale load-more clears its own flag: a newer initial
+            // never resets it and it would block canLoadMore forever.
+            if (staleResetsLoadingMore(isInitial)) setLoadingMore(false);
             return;
         }
 

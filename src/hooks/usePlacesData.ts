@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { showAlert } from '../lib/dialogs';
 import { api } from '../lib/api';
+import { withFlag } from '../lib/asyncFlag';
 import {
     buildPlacesQuery,
     canLoadMore,
@@ -12,6 +13,7 @@ import {
     type StatusTab,
 } from '../lib/dashboardQueries';
 import { removeById, restoreAt, shiftCount } from '../lib/optimisticList';
+import { shouldApplyResponse, staleResetsLoadingMore } from '../lib/raceGuard';
 import type { PlaceData, PlacesResponse } from '../types/place';
 
 interface UsePlacesDataOptions {
@@ -59,7 +61,12 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
             search,
         }));
 
-        if (reqId !== requestIdRef.current) return;
+        if (!shouldApplyResponse(reqId, requestIdRef.current)) {
+            // Stale: the winner clears `loading`; only a stale load-more
+            // must clear its own flag (see raceGuard.ts).
+            if (staleResetsLoadingMore(isInitial)) setLoadingMore(false);
+            return;
+        }
 
         if (res.data) {
             if (isInitial) {
@@ -86,7 +93,7 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
         return Promise.all(
             STATUS_TABS.map(async (tab) => {
                 const res = await api<PlacesResponse>(buildPlacesQuery({ status: tab.key, limit: 1, offset: 0, city }));
-                if (reqId !== countsRequestIdRef.current) return;
+                if (!shouldApplyResponse(reqId, countsRequestIdRef.current)) return;
                 if (res.data) {
                     setCounts((prev) => ({ ...prev, [tab.key]: res.data!.total }));
                 }
@@ -111,12 +118,10 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
         const { removed, index } = removeById(places, placeId);
         setPlaces((prev) => prev.filter((p) => p.id !== placeId));
 
-        setActionLoading(true);
-        const res = await api(`/admin/places/${placeId}/review`, {
+        const res = await withFlag(setActionLoading, () => api(`/admin/places/${placeId}/review`, {
             method: 'PATCH',
             body: { status: 'published' },
-        });
-        setActionLoading(false);
+        }));
 
         if (res.error) {
             if (removed) setPlaces((prev) => restoreAt(prev, removed, index));
@@ -134,9 +139,8 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
         // be silently dropped.
         setPlaces((prev) => [removed, ...prev.filter((p) => p.id !== placeId)]);
 
-        setActionLoading(true);
-        const res = await api(`/admin/places/${placeId}/postpone`, { method: 'PATCH' });
-        setActionLoading(false);
+        const res = await withFlag(setActionLoading, () =>
+            api(`/admin/places/${placeId}/postpone`, { method: 'PATCH' }));
 
         if (res.error) {
             setPlaces((prev) => restoreAt(prev.filter((p) => p.id !== placeId), removed, index));
@@ -151,9 +155,8 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
         const body: Record<string, string> = { status: newStatus };
         if (reason) body.rejectionReason = reason;
 
-        setActionLoading(true);
-        const res = await api(`/admin/places/${placeId}/review`, { method: 'PATCH', body });
-        setActionLoading(false);
+        const res = await withFlag(setActionLoading, () =>
+            api(`/admin/places/${placeId}/review`, { method: 'PATCH', body }));
 
         if (res.error) {
             if (removed) setPlaces((prev) => restoreAt(prev, removed, index));
@@ -169,12 +172,10 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
         const { removed, index } = removeById(places, placeId);
         setPlaces((prev) => prev.filter((p) => p.id !== placeId));
 
-        setActionLoading(true);
-        const res = await api(`/admin/places/${placeId}/review`, {
+        const res = await withFlag(setActionLoading, () => api(`/admin/places/${placeId}/review`, {
             method: 'PATCH',
             body: { status: 'rejected', rejectionReason: reason },
-        });
-        setActionLoading(false);
+        }));
 
         if (res.error) {
             if (removed) setPlaces((prev) => restoreAt(prev, removed, index));
@@ -192,9 +193,8 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
                 { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'Delete', style: 'destructive', onPress: async () => {
-                        setActionLoading(true);
-                        const res = await api(`/admin/places/${placeId}?hard=true`, { method: 'DELETE' });
-                        setActionLoading(false);
+                        const res = await withFlag(setActionLoading, () =>
+                            api(`/admin/places/${placeId}?hard=true`, { method: 'DELETE' }));
 
                         if (res.error) {
                             showAlert('Error', (res.errorBody as { error?: string } | null)?.error ?? res.error);

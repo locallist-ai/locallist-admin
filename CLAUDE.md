@@ -53,6 +53,8 @@ npx expo start --dev-client --port 8084
 - `src/lib/dashboardQueries.ts` — Pure query/pagination rules for the dashboard (filters, badges, refresh per mode). Tested.
 - `src/lib/optimisticList.ts` — Pure list/count ops behind optimistic updates with rollback. Tested.
 - `src/lib/batchTranslate.ts` — Chunked batch-translate loop with injected API call. Tested.
+- `src/lib/raceGuard.ts` — Pure logic of the monotonic request-id race guard (stale initial must not touch `loading`; stale load-more clears its own flag). Tested.
+- `src/lib/asyncFlag.ts` — `withFlag`: raises/lowers a boolean in-flight flag around an async action (try/finally). Wraps `actionLoading` in all dashboard mutations. Tested.
 - `src/lib/constants.ts` — Re-exports taxonomy + `PRICE_RANGES`, `BEST_TIMES`, `STATUSES`, `MAX_STOPS_PER_DAY`.
 - `src/utils/getDirtyFields.ts` — Dirty-field diff for PATCH bodies (coerces numeric strings from DTO drift). Exporta `PLACE_EDITABLE_KEYS`: gatekeeper del PATCH — un campo editable que no esté en esa lista se descarta silenciosamente al guardar (causa raíz de la pérdida de subcategorías/i18n de jun 2026). Al añadir un campo editable al formulario, añadirlo también ahí.
 - `src/context/AuthContext.tsx` — Auth state management (JWT + Firebase integration).
