@@ -26,7 +26,7 @@ npx expo start --dev-client --port 8084
 ## Key Files
 
 - `app/(app)/index.tsx` — Main dashboard (~300 lines of composition). Mode toggle (places / plans) + batch-translate overlay; data lives in `usePlacesData` / `usePlansData` / `useFilterState`, UI in `DashboardHeader`, `FilterBar`, `StatusTabs`, `BatchActionsRow`, `PlacesList`, `PlansList`. Swipe UI only for `in_review` places.
-- `app/(app)/place/[id].tsx` — Place detail/edit screen.
+- `app/(app)/place/[id].tsx` — Place detail/edit screen. Includes AI description suggestion (`POST /admin/places/{id}/suggest-description`).
 - `app/(app)/place/create.tsx` — Place creation form.
 - `app/(app)/places/import-batch.tsx` — CSV batch import.
 - `app/(app)/places/import-google.tsx` — Google Places import.
@@ -54,7 +54,7 @@ npx expo start --dev-client --port 8084
 - `src/lib/optimisticList.ts` — Pure list/count ops behind optimistic updates with rollback. Tested.
 - `src/lib/batchTranslate.ts` — Chunked batch-translate loop with injected API call. Tested.
 - `src/lib/constants.ts` — Re-exports taxonomy + `PRICE_RANGES`, `BEST_TIMES`, `STATUSES`, `MAX_STOPS_PER_DAY`.
-- `src/utils/getDirtyFields.ts` — Dirty-field diff for PATCH bodies (coerces numeric strings from DTO drift).
+- `src/utils/getDirtyFields.ts` — Dirty-field diff for PATCH bodies (coerces numeric strings from DTO drift). Exporta `PLACE_EDITABLE_KEYS`: gatekeeper del PATCH — un campo editable que no esté en esa lista se descarta silenciosamente al guardar (causa raíz de la pérdida de subcategorías/i18n de jun 2026). Al añadir un campo editable al formulario, añadirlo también ahí.
 - `src/context/AuthContext.tsx` — Auth state management (JWT + Firebase integration).
 - `src/hooks/useBreakpoint.ts` — Responsive breakpoint hook (isDesktop).
 - `src/hooks/useTaxonomy.ts` — Hook for loading taxonomy data.
