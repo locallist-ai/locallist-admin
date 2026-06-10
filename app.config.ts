@@ -7,7 +7,7 @@ import * as path from 'path';
 function readPlistValue(xml: string, key: string): string {
     const match = xml.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`));
     if (!match) throw new Error(`GoogleService-Info.plist: falta la clave ${key}`);
-    return match[1];
+    return match[1].trim();
 }
 
 function readFirebaseConfig() {
