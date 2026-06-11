@@ -7,9 +7,9 @@ import {
     Pressable,
     StyleSheet,
     ActivityIndicator,
-    Alert,
     Image,
 } from 'react-native';
+import { showAlert } from '../../../src/lib/dialogs';
 import { useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import type { PlaceData } from '../../../src/types/place';
@@ -36,15 +36,15 @@ export default function PlaceCreateScreen() {
 
     const handleCreate = async () => {
         if (!form.name?.trim()) {
-            Alert.alert('Required', 'Name is required.');
+            showAlert('Required', 'Name is required.');
             return;
         }
         if (!form.category) {
-            Alert.alert('Required', 'Category is required.');
+            showAlert('Required', 'Category is required.');
             return;
         }
         if (!form.whyThisPlace?.trim()) {
-            Alert.alert('Required', 'Why This Place is required.');
+            showAlert('Required', 'Why This Place is required.');
             return;
         }
 
@@ -70,10 +70,10 @@ export default function PlaceCreateScreen() {
         setSaving(false);
 
         if (res.data) {
-            Alert.alert('Created', `${res.data.name} created successfully.`);
+            showAlert('Created', `${res.data.name} created successfully.`);
             router.back();
         } else {
-            Alert.alert('Error', `Failed to create: ${res.error}`);
+            showAlert('Error', `Failed to create: ${res.error}`);
         }
     };
 

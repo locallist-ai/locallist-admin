@@ -6,7 +6,6 @@ import {
     Pressable,
     ActivityIndicator,
     ActionSheetIOS,
-    Alert,
     Platform,
     ScrollView,
     Modal,
@@ -24,6 +23,8 @@ import BatchActionsRow, { batchBtnStyles } from '../../src/components/BatchActio
 import PlacesList from '../../src/components/PlacesList';
 import PlansList from '../../src/components/PlansList';
 import RejectionModal from '../../src/components/RejectionModal';
+import OptionsMenuModal from '../../src/components/OptionsMenuModal';
+import { showAlert } from '../../src/lib/dialogs';
 import { runBatchTranslate, type BatchChunk } from '../../src/lib/batchTranslate';
 import { refreshTasksFor, type Mode, type StatusTab } from '../../src/lib/dashboardQueries';
 import type { PlaceData } from '../../src/types/place';
@@ -45,6 +46,7 @@ export default function DashboardScreen() {
     const plansData = usePlansData({ mode });
 
     const [rejectionTarget, setRejectionTarget] = useState<PlaceData | null>(null);
+    const [createMenuVisible, setCreateMenuVisible] = useState(false);
     const [batchProgress, setBatchProgress] = useState<{ label: string; current: number; total: number } | null>(null);
     const batchCancelRef = useRef<AbortController | null>(null);
     const [refreshing, setRefreshing] = useState(false);
@@ -90,14 +92,14 @@ export default function DashboardScreen() {
         batchCancelRef.current = null;
 
         if (result.error) {
-            Alert.alert('Error', `Batch translate failed: ${result.error}`);
+            showAlert('Error', `Batch translate failed: ${result.error}`);
         } else if (!result.aborted) {
-            Alert.alert('Done', `Translated: ${result.translated}, Failed: ${result.failed}`);
+            showAlert('Done', `Translated: ${result.translated}, Failed: ${result.failed}`);
         }
     };
 
     const handleTranslatePlacesBatch = () => {
-        Alert.alert(
+        showAlert(
             'Translate All Curated Places (ES)',
             'This will send all untranslated curated places to Gemini for ES draft translation. Continue?',
             [
@@ -108,7 +110,7 @@ export default function DashboardScreen() {
     };
 
     const handleTranslatePlansBatch = () => {
-        Alert.alert(
+        showAlert(
             'Translate All Curated Plans (ES)',
             'This will send all untranslated curated plans to Gemini for ES draft translation. Continue?',
             [
@@ -137,13 +139,8 @@ export default function DashboardScreen() {
                 }
             );
         } else {
-            Alert.alert('Add place', '', [
-                { text: 'Create manually', onPress: () => router.push('/place/create') },
-                { text: 'Import from Google', onPress: () => router.push('/places/import-google') },
-                { text: 'Import batch (links/CSV)', onPress: () => router.push('/places/import-batch') },
-                { text: 'Backfill descriptions', onPress: () => router.push('/places/backfill-descriptions') },
-                { text: 'Cancel', style: 'cancel' },
-            ]);
+            // Alert.alert con botones es no-op en react-native-web: menú propio.
+            setCreateMenuVisible(true);
         }
     };
 
@@ -265,6 +262,18 @@ export default function DashboardScreen() {
                     </>
                 )}
             </ScrollView>
+
+            <OptionsMenuModal
+                visible={createMenuVisible}
+                title="Add place"
+                options={[
+                    { label: 'Create manually', onSelect: () => router.push('/place/create') },
+                    { label: 'Import from Google', onSelect: () => router.push('/places/import-google') },
+                    { label: 'Import batch (links/CSV)', onSelect: () => router.push('/places/import-batch') },
+                    { label: 'Backfill descriptions', onSelect: () => router.push('/places/backfill-descriptions') },
+                ]}
+                onClose={() => setCreateMenuVisible(false)}
+            />
 
             <RejectionModal
                 visible={!!rejectionTarget}

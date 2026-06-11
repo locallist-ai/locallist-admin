@@ -7,10 +7,10 @@ import {
     Pressable,
     StyleSheet,
     ActivityIndicator,
-    Alert,
     Image,
     Switch,
 } from 'react-native';
+import { showAlert } from '../../../src/lib/dialogs';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import type { PlaceData, PlaceTranslateDraft } from '../../../src/types/place';
@@ -57,7 +57,7 @@ export default function PlaceEditScreen() {
             setForm(res.data);
             originalRef.current = res.data;
         } else {
-            Alert.alert('Error', `Failed to load place: ${res.error}`);
+            showAlert('Error', `Failed to load place: ${res.error}`);
         }
         setLoading(false);
     }, [id]);
@@ -79,7 +79,7 @@ export default function PlaceEditScreen() {
     const handleSave = async () => {
         const dirty = getDirtyFields();
         if (Object.keys(dirty).length === 0) {
-            Alert.alert('No changes', 'Nothing to save.');
+            showAlert('No changes', 'Nothing to save.');
             return;
         }
 
@@ -94,10 +94,10 @@ export default function PlaceEditScreen() {
             originalRef.current = res.data;
             setForm(res.data);
             setPlace(res.data);
-            Alert.alert('Saved', 'Place updated successfully.');
+            showAlert('Saved', 'Place updated successfully.');
             router.back();
         } else {
-            Alert.alert('Error', `Failed to save: ${res.error}`);
+            showAlert('Error', `Failed to save: ${res.error}`);
         }
     };
 
@@ -131,7 +131,7 @@ export default function PlaceEditScreen() {
 
     const handleSuggestTranslation = async () => {
         if (place?.source !== 'curated') {
-            Alert.alert('Not curated', 'Translation is only available for curated places.');
+            showAlert('Not curated', 'Translation is only available for curated places.');
             return;
         }
         setTranslating(true);
@@ -149,7 +149,7 @@ export default function PlaceEditScreen() {
                 suitableForEs: res.data!.suitableForEs ?? prev.suitableForEs,
             }));
         } else {
-            Alert.alert('Error', `Translation failed: ${res.error}`);
+            showAlert('Error', `Translation failed: ${res.error}`);
         }
     };
 
@@ -310,7 +310,7 @@ export default function PlaceEditScreen() {
                             if (res.data?.whyThisPlace) {
                                 updateField('whyThisPlace', res.data.whyThisPlace);
                             } else {
-                                Alert.alert('Error', res.error ?? 'Could not generate description.');
+                                showAlert('Error', res.error ?? 'Could not generate description.');
                             }
                         }}
                     >

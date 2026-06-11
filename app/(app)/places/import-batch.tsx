@@ -7,8 +7,8 @@ import {
     Pressable,
     StyleSheet,
     ActivityIndicator,
-    Alert,
 } from 'react-native';
+import { showAlert } from '../../../src/lib/dialogs';
 import { Stack } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import Papa from 'papaparse';
@@ -90,18 +90,18 @@ export default function ImportBatchScreen() {
             setCsvUrls(urls);
             setCsvFileName(file.name);
         } catch {
-            Alert.alert('Error', 'Could not read the CSV file.');
+            showAlert('Error', 'Could not read the CSV file.');
         }
     };
 
     const handleImport = async () => {
         const urls = activeUrls;
         if (urls.length === 0) {
-            Alert.alert('No URLs', 'Add at least one URL before importing.');
+            showAlert('No URLs', 'Add at least one URL before importing.');
             return;
         }
         if (urls.length > 500) {
-            Alert.alert('Limit', 'Maximum 500 URLs per import.');
+            showAlert('Limit', 'Maximum 500 URLs per import.');
             return;
         }
 
