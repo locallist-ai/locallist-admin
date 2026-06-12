@@ -39,31 +39,33 @@ describe('staleResetsLoadingMore', () => {
 
 /**
  * Simulación del protocolo completo del hook (sin renderizar React):
- * reproduce el interleaving que causaba el bug del spinner. Con la
- * semántica antigua (un stale inicial hacía setLoading(false)) el primer
- * assert de `loading === true` FALLA.
+ * reproduce los interleavings que causaban el bug del spinner.
+ */
+type Flags = { loading: boolean; loadingMore: boolean };
+
+function makeLoader(flags: Flags) {
+    let counter = 0;
+    return async (isInitial: boolean, response: Promise<void>) => {
+        if (isInitial) flags.loading = true;
+        else flags.loadingMore = true;
+
+        const reqId = ++counter;
+        await response;
+
+        if (!shouldApplyResponse(reqId, counter)) {
+            if (staleResetsLoadingMore(isInitial)) flags.loadingMore = false;
+            return;
+        }
+        if (isInitial) flags.loading = false;
+        else flags.loadingMore = false;
+    };
+}
+
+/**
+ * Con la semántica antigua (un stale inicial hacía setLoading(false)) el
+ * primer assert de `loading === true` FALLA.
  */
 describe('protocolo del guard — interleaving initial-vs-initial (regresión del spinner)', () => {
-    type Flags = { loading: boolean; loadingMore: boolean };
-
-    function makeLoader(flags: Flags) {
-        let counter = 0;
-        return async (isInitial: boolean, response: Promise<void>) => {
-            if (isInitial) flags.loading = true;
-            else flags.loadingMore = true;
-
-            const reqId = ++counter;
-            await response;
-
-            if (!shouldApplyResponse(reqId, counter)) {
-                if (staleResetsLoadingMore(isInitial)) flags.loadingMore = false;
-                return;
-            }
-            if (isInitial) flags.loading = false;
-            else flags.loadingMore = false;
-        };
-    }
-
     it('la respuesta stale no apaga el spinner del ganador en vuelo (StrictMode double-fire)', async () => {
         const flags: Flags = { loading: false, loadingMore: false };
         const load = makeLoader(flags);
@@ -99,5 +101,62 @@ describe('protocolo del guard — interleaving initial-vs-initial (regresión de
         resolveInitial();
         await runInitial;
         expect(flags.loading).toBe(false);
+    });
+});
+
+/**
+ * Cuarto interleaving: un initial (req1) supersedido por un load-more (req2).
+ * El initial stale no toca `loading` (regla anti-spinner) y el load-more
+ * ganador solo limpia `loadingMore` — a nivel protocolo `loading` queda
+ * stuck. Los hooks cierran el hueco impidiendo el interleaving: loadMore
+ * hace early-return si `loading` está activo.
+ */
+describe('protocolo del guard — interleaving initial-vs-load-more (hueco de loading)', () => {
+    it('a nivel protocolo, un initial supersedido por un load-more deja loading stuck', async () => {
+        const flags: Flags = { loading: false, loadingMore: false };
+        const load = makeLoader(flags);
+
+        let resolveInitial!: () => void;
+        let resolveMore!: () => void;
+        const runInitial = load(true, new Promise<void>((r) => { resolveInitial = r; }));
+        const runMore = load(false, new Promise<void>((r) => { resolveMore = r; }));
+
+        resolveInitial();
+        await runInitial;
+        // El initial stale no toca loading, pero el "ganador" es un
+        // load-more que nunca lo limpiará.
+        expect(flags.loading).toBe(true);
+
+        resolveMore();
+        await runMore;
+        expect(flags.loadingMore).toBe(false);
+        // Stuck: nadie limpia loading. Por esto loadMore debe abortar
+        // mientras un initial está en vuelo.
+        expect(flags.loading).toBe(true);
+    });
+
+    it('el guard de loadMore (abortar si loading está activo) impide el interleaving', async () => {
+        const flags: Flags = { loading: false, loadingMore: false };
+        const load = makeLoader(flags);
+
+        // Réplica del early-return de loadMore en los hooks.
+        const loadMore = (response: Promise<void>) => {
+            if (flags.loading) return null;
+            return load(false, response);
+        };
+
+        let resolveInitial!: () => void;
+        const runInitial = load(true, new Promise<void>((r) => { resolveInitial = r; }));
+
+        // Con el initial en vuelo, el load-more ni siquiera arranca.
+        expect(loadMore(Promise.resolve())).toBeNull();
+
+        resolveInitial();
+        await runInitial;
+        expect(flags.loading).toBe(false); // el initial sigue siendo el más reciente y se limpia
+
+        // Sin initial en vuelo, el load-more procede con normalidad.
+        await loadMore(Promise.resolve());
+        expect(flags.loadingMore).toBe(false);
     });
 });

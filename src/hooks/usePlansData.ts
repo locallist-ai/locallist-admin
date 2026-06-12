@@ -56,6 +56,9 @@ export function usePlansData({ mode }: { mode: Mode }) {
     }, [mode, loadPlans]);
 
     const loadMore = () => {
+        // A load-more issued while an initial load is in flight supersedes
+        // it and `loading` would never clear (see raceGuard.test.ts).
+        if (loading) return;
         if (!canLoadMore(loadingMore, plans.length, total)) return;
         loadPlans(plans.length);
     };

@@ -110,6 +110,9 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
     }, [activeTab, loadPlaces, mode]);
 
     const loadMore = () => {
+        // A load-more issued while an initial load is in flight supersedes
+        // it and `loading` would never clear (see raceGuard.test.ts).
+        if (loading) return;
         if (!canLoadMore(loadingMore, places.length, total)) return;
         loadPlaces(activeTab, places.length);
     };
