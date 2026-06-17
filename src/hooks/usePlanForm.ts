@@ -91,8 +91,7 @@ export function usePlanForm(id: string) {
         setSaving(false);
 
         if (outcome.status === 'error') {
-            const what = outcome.scope === 'meta' ? 'plan' : 'stops';
-            showAlert('Error', `Failed to update ${what}: ${outcome.message}`);
+            showAlert('Error', `Failed to update plan: ${outcome.message}`);
             return;
         }
 

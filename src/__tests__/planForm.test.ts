@@ -17,7 +17,6 @@ import {
     stopsToPayload,
     type LocalStop,
     type PlanForm,
-    type SaveApi,
 } from '../lib/planForm';
 import type { PlanData } from '../types/plan';
 
@@ -153,39 +152,35 @@ describe('savePlan (orquestación + camino de error)', () => {
         expect(apiCall).toHaveBeenCalledWith('/admin/plans/p1', { method: 'PATCH', body: { name: 'New' } });
     });
 
-    it('solo stops: un PUT con el payload proyectado', async () => {
+    it('solo stops: un PATCH atómico con los stops en el body', async () => {
         const apiCall = vi.fn(async () => ({ error: null }));
         const stops = [stop('a', 1, 0)];
         const out = await savePlan(apiCall, 'p1', { metaDirty: {}, stops, stopsChanged: true });
         expect(out).toEqual({ status: 'saved' });
-        expect(apiCall).toHaveBeenCalledWith('/admin/plans/p1/stops', {
-            method: 'PUT',
+        expect(apiCall).toHaveBeenCalledTimes(1);
+        expect(apiCall).toHaveBeenCalledWith('/admin/plans/p1', {
+            method: 'PATCH',
             body: { stops: stopsToPayload(stops) },
         });
     });
 
-    it('metadata + stops: PATCH y luego PUT', async () => {
+    it('metadata + stops: un solo PATCH atómico con ambos en el body', async () => {
         const apiCall = vi.fn(async () => ({ error: null }));
-        const out = await savePlan(apiCall, 'p1', { metaDirty: { name: 'N' }, stops: [stop('a', 1, 0)], stopsChanged: true });
+        const stops = [stop('a', 1, 0)];
+        const out = await savePlan(apiCall, 'p1', { metaDirty: { name: 'N' }, stops, stopsChanged: true });
         expect(out).toEqual({ status: 'saved' });
-        expect(apiCall).toHaveBeenCalledTimes(2);
+        expect(apiCall).toHaveBeenCalledTimes(1);
+        expect(apiCall).toHaveBeenCalledWith('/admin/plans/p1', {
+            method: 'PATCH',
+            body: { name: 'N', stops: stopsToPayload(stops) },
+        });
     });
 
-    it('error en metadata: corta antes de tocar stops', async () => {
+    it('error: una sola llamada atómica, sin estado mixto', async () => {
         const apiCall = vi.fn(async () => ({ error: 'boom' }));
         const out = await savePlan(apiCall, 'p1', { metaDirty: { name: 'N' }, stops: [stop('a', 1, 0)], stopsChanged: true });
-        expect(out).toEqual({ status: 'error', scope: 'meta', message: 'boom' });
+        expect(out).toEqual({ status: 'error', message: 'boom' });
         expect(apiCall).toHaveBeenCalledTimes(1);
-    });
-
-    it('error en stops: PATCH ya hecho, reporta scope stops', async () => {
-        const apiCall = vi
-            .fn<SaveApi>()
-            .mockResolvedValueOnce({ error: null })
-            .mockResolvedValueOnce({ error: 'stops failed' });
-        const out = await savePlan(apiCall, 'p1', { metaDirty: { name: 'N' }, stops: [stop('a', 1, 0)], stopsChanged: true });
-        expect(out).toEqual({ status: 'error', scope: 'stops', message: 'stops failed' });
-        expect(apiCall).toHaveBeenCalledTimes(2);
     });
 
     it('serializeStops detecta cambios de orden', () => {

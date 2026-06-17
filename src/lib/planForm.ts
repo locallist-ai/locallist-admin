@@ -156,14 +156,15 @@ export type SaveApi = (
 
 export type SavePlanOutcome =
     | { status: 'no-changes' }
-    | { status: 'error'; scope: 'meta' | 'stops'; message: string }
+    | { status: 'error'; message: string }
     | { status: 'saved' };
 
 /**
- * Orchestrates the (non-atomic) plan save: PATCH metadata then PUT stops,
- * each only when dirty, short-circuiting on the first failure so a later
- * call can never run on top of an error. COMMIT 4 collapses this into the
- * single transactional PATCH once the API endpoint lands in main.
+ * Atomic plan save: a single PATCH /admin/plans/{id} carrying the metadata
+ * changes and, when stops changed, the full stop list. The API writes both in
+ * one transaction (stops present = replace all; absent = metadata-only), so a
+ * failure can never leave the mixed state the old two-call flow (PATCH metadata
+ * + PUT /stops) risked when the second call failed.
  */
 export async function savePlan(
     apiCall: SaveApi,
@@ -173,18 +174,11 @@ export async function savePlan(
     const hasMetaChanges = Object.keys(params.metaDirty).length > 0;
     if (!hasMetaChanges && !params.stopsChanged) return { status: 'no-changes' };
 
-    if (hasMetaChanges) {
-        const res = await apiCall(`/admin/plans/${id}`, { method: 'PATCH', body: params.metaDirty });
-        if (res.error) return { status: 'error', scope: 'meta', message: res.error };
-    }
+    const body: Record<string, unknown> = { ...params.metaDirty };
+    if (params.stopsChanged) body.stops = stopsToPayload(params.stops);
 
-    if (params.stopsChanged) {
-        const res = await apiCall(`/admin/plans/${id}/stops`, {
-            method: 'PUT',
-            body: { stops: stopsToPayload(params.stops) },
-        });
-        if (res.error) return { status: 'error', scope: 'stops', message: res.error };
-    }
+    const res = await apiCall(`/admin/plans/${id}`, { method: 'PATCH', body });
+    if (res.error) return { status: 'error', message: res.error };
 
     return { status: 'saved' };
 }

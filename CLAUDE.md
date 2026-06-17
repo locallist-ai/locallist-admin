@@ -64,7 +64,7 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 - `src/lib/dashboardQueries.ts` — Pure query/pagination rules for the dashboard (filters, badges, refresh per mode). Tested.
 - `src/lib/optimisticList.ts` — Pure list/count ops behind optimistic updates with rollback. Tested.
 - `src/lib/batchTranslate.ts` — Chunked batch-translate loop with injected API call. Tested.
-- `src/lib/planForm.ts` — Pure logic behind `usePlanForm`: plan→form/stops mapping, metadata diff, stop ops (add with per-day cap, remove/move + reindex), and `savePlan` (non-atomic PATCH meta + PUT stops, error path) with injected API. Tested.
+- `src/lib/planForm.ts` — Pure logic behind `usePlanForm`: plan→form/stops mapping, metadata diff, stop ops (add with per-day cap, remove/move + reindex), and `savePlan` (single atomic `PATCH /admin/plans/{id}` carrying metadata + full stop list, error path) with injected API. Tested.
 - `src/lib/placeForm.ts` — Pure logic behind `usePlaceForm`: bestFor tags, photos, ES translation-draft merge, and `savePlace` (PATCH dirty, error path) with injected API. Tested. (Dirty diff stays in `getDirtyFields`.)
 - `src/lib/raceGuard.ts` — Pure logic of the monotonic request-id race guard (stale initial must not touch `loading`; stale load-more clears its own flag). Tested.
 - `src/lib/asyncFlag.ts` — `withFlag`: raises/lowers a boolean in-flight flag around an async action (try/finally). Wraps `actionLoading` in all dashboard mutations. Tested.
