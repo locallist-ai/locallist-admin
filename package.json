@@ -8,7 +8,9 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "vitest run --passWithNoTests",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:ios": "./scripts/build-local.sh production",
+    "build:sim": "./scripts/build-local.sh preview"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "~2.2.0",

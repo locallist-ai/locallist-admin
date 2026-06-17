@@ -52,3 +52,6 @@ yarn-error.*
 pnpm-lock.yaml
 pnpm-workspace.yaml
 .vercel
+
+# wrapper scripts/build-local.sh
+builds/
