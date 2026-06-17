@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React from 'react';
 import {
     View,
     Text,
@@ -9,240 +9,39 @@ import {
     ActivityIndicator,
     Switch,
 } from 'react-native';
-import { showAlert } from '../../../src/lib/dialogs';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { api } from '../../../src/lib/api';
-import type { PlanData } from '../../../src/types/plan';
-import type { PlaceData } from '../../../src/types/place';
+import { useLocalSearchParams, Stack } from 'expo-router';
 import PlaceSearch from '../../../src/components/PlaceSearch';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
-import { MAX_STOPS_PER_DAY } from '../../../src/lib/constants';
+import { usePlanForm } from '../../../src/hooks/usePlanForm';
 
 const PLAN_TYPES = ['foodie', 'culture', 'adventure', 'nightlife', 'wellness', 'family', 'custom'] as const;
 const DURATION_OPTIONS = [1, 2, 3, 4, 5] as const;
 const TIME_BLOCKS = ['morning', 'lunch', 'afternoon', 'dinner', 'late_night'] as const;
 
-interface LocalStop {
-    placeId: string;
-    placeName: string;
-    placeCategory: string;
-    dayNumber: number;
-    orderIndex: number;
-    timeBlock?: string;
-    suggestedDurationMin?: number;
-}
-
 export default function PlanEditScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    const router = useRouter();
-
-    const [plan, setPlan] = useState<PlanData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-
-    // Metadata form
-    const [form, setForm] = useState({
-        name: '', city: '', type: 'custom', description: '', imageUrl: '',
-        durationDays: 1, isPublic: true, isShowcase: false,
-        nameEs: '' as string | null, descriptionEs: '' as string | null,
-        translationStatusEs: null as string | null,
-    });
-    const originalFormRef = useRef(form);
-    const [translating, setTranslating] = useState(false);
-
-    // Stops
-    const [stops, setStops] = useState<LocalStop[]>([]);
-    const originalStopsRef = useRef<string>('[]');
-
-    // Add stop form
-    const [addDay, setAddDay] = useState(1);
-    const [addTimeBlock, setAddTimeBlock] = useState<string | undefined>();
-    const [addDuration, setAddDuration] = useState('');
-
-    const loadPlan = useCallback(async () => {
-        setLoading(true);
-        const res = await api<PlanData>(`/admin/plans/${id}`);
-        if (res.data) {
-            setPlan(res.data);
-            const f = {
-                name: res.data.name,
-                city: res.data.city,
-                type: res.data.type,
-                description: res.data.description ?? '',
-                imageUrl: res.data.imageUrl ?? '',
-                durationDays: res.data.durationDays,
-                isPublic: res.data.isPublic,
-                isShowcase: res.data.isShowcase,
-                nameEs: res.data.nameEs ?? null,
-                descriptionEs: res.data.descriptionEs ?? null,
-                translationStatusEs: res.data.translationStatusEs ?? null,
-            };
-            setForm(f);
-            originalFormRef.current = f;
-
-            const loadedStops: LocalStop[] = (res.data.days ?? []).flatMap(day =>
-                day.stops.map(s => ({
-                    placeId: s.place.id,
-                    placeName: s.place.name,
-                    placeCategory: s.place.category,
-                    dayNumber: day.dayNumber,
-                    orderIndex: s.orderIndex,
-                    timeBlock: s.timeBlock,
-                    suggestedDurationMin: s.suggestedDurationMin,
-                }))
-            );
-            setStops(loadedStops);
-            originalStopsRef.current = JSON.stringify(loadedStops);
-        } else {
-            showAlert('Error', `Failed to load plan: ${res.error}`);
-        }
-        setLoading(false);
-    }, [id]);
-
-    useEffect(() => { loadPlan(); }, [loadPlan]);
-
-    const getMetadataDirty = () => {
-        const orig = originalFormRef.current;
-        const dirty: Record<string, unknown> = {};
-        for (const key of Object.keys(form) as (keyof typeof form)[]) {
-            if (form[key] !== orig[key]) dirty[key] = form[key];
-        }
-        return dirty;
-    };
-
-    const stopsChanged = () => JSON.stringify(stops) !== originalStopsRef.current;
-
-    const handleSave = async () => {
-        const metaDirty = getMetadataDirty();
-        const hasMetaChanges = Object.keys(metaDirty).length > 0;
-        const hasStopChanges = stopsChanged();
-
-        if (!hasMetaChanges && !hasStopChanges) {
-            showAlert('No changes', 'Nothing to save.');
-            return;
-        }
-
-        setSaving(true);
-
-        if (hasMetaChanges) {
-            const res = await api(`/admin/plans/${id}`, {
-                method: 'PATCH',
-                body: metaDirty,
-            });
-            if (res.error) {
-                setSaving(false);
-                showAlert('Error', `Failed to update plan: ${res.error}`);
-                return;
-            }
-        }
-
-        if (hasStopChanges) {
-            const stopsPayload = stops.map(s => ({
-                placeId: s.placeId,
-                dayNumber: s.dayNumber,
-                orderIndex: s.orderIndex,
-                timeBlock: s.timeBlock,
-                suggestedDurationMin: s.suggestedDurationMin,
-            }));
-
-            const res = await api(`/admin/plans/${id}/stops`, {
-                method: 'PUT',
-                body: { stops: stopsPayload },
-            });
-            if (res.error) {
-                setSaving(false);
-                showAlert('Error', `Failed to update stops: ${res.error}`);
-                return;
-            }
-        }
-
-        setSaving(false);
-        showAlert('Saved', 'Plan updated successfully.');
-        // Refresh to sync with server
-        await loadPlan();
-    };
-
-    const handleDelete = () => {
-        showAlert('Delete Plan', 'Are you sure? This cannot be undone.', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Delete', style: 'destructive', onPress: async () => {
-                    const res = await api(`/admin/plans/${id}`, { method: 'DELETE' });
-                    if (res.error) {
-                        showAlert('Error', `Failed to delete: ${res.error}`);
-                    } else {
-                        router.back();
-                    }
-                },
-            },
-        ]);
-    };
-
-    const handleSuggestTranslation = async () => {
-        setTranslating(true);
-        const res = await api<{ nameEs: string; descriptionEs: string }>(`/admin/plans/${id}/translate`, { method: 'POST' });
-        setTranslating(false);
-        if (res.data) {
-            setForm(f => ({
-                ...f,
-                nameEs: res.data!.nameEs ?? f.nameEs,
-                descriptionEs: res.data!.descriptionEs ?? f.descriptionEs,
-            }));
-        } else {
-            showAlert('Error', `Translation failed: ${res.error}`);
-        }
-    };
-
-    const handleAddStop = (place: PlaceData) => {
-        const dayStops = stops.filter(s => s.dayNumber === addDay);
-        if (dayStops.length >= MAX_STOPS_PER_DAY) {
-            showAlert('Limit reached', `Maximum ${MAX_STOPS_PER_DAY} places per day.`);
-            return;
-        }
-        const newStop: LocalStop = {
-            placeId: place.id,
-            placeName: place.name,
-            placeCategory: place.category,
-            dayNumber: addDay,
-            orderIndex: dayStops.length,
-            timeBlock: addTimeBlock,
-            suggestedDurationMin: addDuration ? parseInt(addDuration, 10) : undefined,
-        };
-        setStops(prev => [...prev, newStop]);
-        setAddDuration('');
-        setAddTimeBlock(undefined);
-    };
-
-    const removeStop = (dayNumber: number, orderIndex: number) => {
-        setStops(prev => {
-            const filtered = prev.filter(s => !(s.dayNumber === dayNumber && s.orderIndex === orderIndex));
-            // Re-index stops for this day
-            let idx = 0;
-            return filtered.map(s => {
-                if (s.dayNumber === dayNumber) {
-                    return { ...s, orderIndex: idx++ };
-                }
-                return s;
-            });
-        });
-    };
-
-    const moveStop = (dayNumber: number, orderIndex: number, direction: -1 | 1) => {
-        setStops(prev => {
-            const dayStops = prev.filter(s => s.dayNumber === dayNumber).sort((a, b) => a.orderIndex - b.orderIndex);
-            const idx = dayStops.findIndex(s => s.orderIndex === orderIndex);
-            const targetIdx = idx + direction;
-            if (targetIdx < 0 || targetIdx >= dayStops.length) return prev;
-
-            // Swap order indices
-            const swapped = [...dayStops];
-            [swapped[idx], swapped[targetIdx]] = [swapped[targetIdx], swapped[idx]];
-            const reindexed = swapped.map((s, i) => ({ ...s, orderIndex: i }));
-
-            const otherStops = prev.filter(s => s.dayNumber !== dayNumber);
-            return [...otherStops, ...reindexed];
-        });
-    };
+    const {
+        plan,
+        loading,
+        saving,
+        form,
+        setField,
+        translating,
+        stops,
+        addDay,
+        setAddDay,
+        addTimeBlock,
+        setAddTimeBlock,
+        addDuration,
+        setAddDuration,
+        hasChanges,
+        handleSave,
+        handleDelete,
+        handleSuggestTranslation,
+        handleAddStop,
+        removeStop,
+        moveStop,
+    } = usePlanForm(id);
 
     if (loading) {
         return (
@@ -259,8 +58,6 @@ export default function PlanEditScreen() {
             </View>
         );
     }
-
-    const hasChanges = Object.keys(getMetadataDirty()).length > 0 || stopsChanged();
 
     return (
         <>
@@ -279,7 +76,7 @@ export default function PlanEditScreen() {
                     <TextInput
                         style={styles.input}
                         value={form.name}
-                        onChangeText={(v) => setForm(f => ({ ...f, name: v }))}
+                        onChangeText={(v) => setField('name', v)}
                         placeholderTextColor={colors.textSecondary}
                     />
 
@@ -287,7 +84,7 @@ export default function PlanEditScreen() {
                     <TextInput
                         style={styles.input}
                         value={form.city}
-                        onChangeText={(v) => setForm(f => ({ ...f, city: v }))}
+                        onChangeText={(v) => setField('city', v)}
                         placeholderTextColor={colors.textSecondary}
                     />
 
@@ -297,7 +94,7 @@ export default function PlanEditScreen() {
                             <Pressable
                                 key={t}
                                 style={[styles.chip, form.type === t && styles.chipActive]}
-                                onPress={() => setForm(f => ({ ...f, type: t }))}
+                                onPress={() => setField('type', t)}
                             >
                                 <Text style={[styles.chipText, form.type === t && styles.chipTextActive]}>{t}</Text>
                             </Pressable>
@@ -310,7 +107,7 @@ export default function PlanEditScreen() {
                             <Pressable
                                 key={d}
                                 style={[styles.chip, form.durationDays === d && styles.chipActive]}
-                                onPress={() => setForm(f => ({ ...f, durationDays: d }))}
+                                onPress={() => setField('durationDays', d)}
                             >
                                 <Text style={[styles.chipText, form.durationDays === d && styles.chipTextActive]}>{d}</Text>
                             </Pressable>
@@ -321,7 +118,7 @@ export default function PlanEditScreen() {
                     <TextInput
                         style={[styles.input, styles.multilineInput]}
                         value={form.description}
-                        onChangeText={(v) => setForm(f => ({ ...f, description: v }))}
+                        onChangeText={(v) => setField('description', v)}
                         multiline numberOfLines={3} textAlignVertical="top"
                         placeholderTextColor={colors.textSecondary}
                     />
@@ -330,7 +127,7 @@ export default function PlanEditScreen() {
                     <TextInput
                         style={styles.input}
                         value={form.imageUrl}
-                        onChangeText={(v) => setForm(f => ({ ...f, imageUrl: v }))}
+                        onChangeText={(v) => setField('imageUrl', v)}
                         autoCapitalize="none"
                         placeholderTextColor={colors.textSecondary}
                     />
@@ -342,7 +139,7 @@ export default function PlanEditScreen() {
                         <Text style={styles.toggleLabel}>Public</Text>
                         <Switch
                             value={form.isPublic}
-                            onValueChange={(v) => setForm(f => ({ ...f, isPublic: v }))}
+                            onValueChange={(v) => setField('isPublic', v)}
                             trackColor={{ false: colors.borderColor, true: colors.electricBlue }}
                         />
                     </View>
@@ -350,7 +147,7 @@ export default function PlanEditScreen() {
                         <Text style={styles.toggleLabel}>Showcase</Text>
                         <Switch
                             value={form.isShowcase}
-                            onValueChange={(v) => setForm(f => ({ ...f, isShowcase: v }))}
+                            onValueChange={(v) => setField('isShowcase', v)}
                             trackColor={{ false: colors.borderColor, true: colors.sunsetOrange }}
                         />
                     </View>
@@ -376,7 +173,7 @@ export default function PlanEditScreen() {
                                 <Text style={styles.toggleLabel}>Approved ES</Text>
                                 <Switch
                                     value={form.translationStatusEs === 'approved'}
-                                    onValueChange={(v) => setForm(f => ({ ...f, translationStatusEs: v ? 'approved' : 'draft' }))}
+                                    onValueChange={(v) => setField('translationStatusEs', v ? 'approved' : 'draft')}
                                     trackColor={{ false: colors.borderColor, true: colors.successEmerald }}
                                 />
                             </View>
@@ -385,7 +182,7 @@ export default function PlanEditScreen() {
                             <TextInput
                                 style={styles.input}
                                 value={form.nameEs ?? ''}
-                                onChangeText={(v) => setForm(f => ({ ...f, nameEs: v || null }))}
+                                onChangeText={(v) => setField('nameEs', v || null)}
                                 placeholder={form.name}
                                 placeholderTextColor={colors.textSecondary}
                             />
@@ -394,7 +191,7 @@ export default function PlanEditScreen() {
                             <TextInput
                                 style={[styles.input, styles.multilineInput]}
                                 value={form.descriptionEs ?? ''}
-                                onChangeText={(v) => setForm(f => ({ ...f, descriptionEs: v || null }))}
+                                onChangeText={(v) => setField('descriptionEs', v || null)}
                                 placeholder={form.description || ''}
                                 placeholderTextColor={colors.textSecondary}
                                 multiline numberOfLines={3} textAlignVertical="top"
