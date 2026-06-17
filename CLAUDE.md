@@ -36,12 +36,12 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 ## Key Files
 
 - `app/(app)/index.tsx` — Main dashboard (~300 lines of composition). Mode toggle (places / plans) + batch-translate overlay; data lives in `usePlacesData` / `usePlansData` / `useFilterState`, UI in `DashboardHeader`, `FilterBar`, `StatusTabs`, `BatchActionsRow`, `PlacesList`, `PlansList`. Swipe UI only for `in_review` places.
-- `app/(app)/place/[id].tsx` — Place detail/edit screen. Includes AI description suggestion (`POST /admin/places/{id}/suggest-description`).
+- `app/(app)/place/[id].tsx` — Place detail/edit screen (thin composition). Logic lives in `usePlaceForm`; AI description suggestion (`POST /admin/places/{id}/suggest-description`).
 - `app/(app)/place/create.tsx` — Place creation form.
 - `app/(app)/places/import-batch.tsx` — CSV batch import.
 - `app/(app)/places/import-google.tsx` — Google Places import.
 - `app/(app)/places/backfill-descriptions.tsx` — AI description backfill tool.
-- `app/(app)/plans/[id].tsx` — Plan detail/edit screen.
+- `app/(app)/plans/[id].tsx` — Plan detail/edit screen (thin composition). Logic lives in `usePlanForm`.
 - `app/(app)/plans/create.tsx` — Plan creation form.
 - `app/(auth)/login.tsx` — Google Sign-In: Firebase popup on web, native SDK on mobile. Domain locked to `@locallist.ai`.
 - `src/components/SwipeCard.tsx` — Gesture-handled card for approving/rejecting places.
@@ -51,7 +51,8 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 - `src/components/BatchActionsRow.tsx` — Translate / Reindex / Hours actions for published places.
 - `src/components/PlacesList.tsx` — Swipe deck (queue) or paginated row list with inline actions.
 - `src/components/PlansList.tsx` — Paginated showcase plans list with row actions (shares `listStyles.ts`).
-- `src/components/RejectionModal.tsx` — Modal for entering rejection reason.
+- `src/components/BaseModal.tsx` — Shared modal chrome (translucent overlay + bgCard/borderRadius.lg/shadow card). `avoidKeyboard` for forms; `dismissOnBackdropPress` for menus; exports `baseModalStyles` (incl. the `actions` flex-end row). Consumed by RejectionModal, AddSubcategoryModal, OptionsMenuModal.
+- `src/components/RejectionModal.tsx` — Modal for entering rejection reason (consumes `BaseModal`).
 - `src/components/AddSubcategoryModal.tsx` — Modal for creating subcategories in batch (key + EN/ES labels per row); partial failures keep their rows with inline errors.
 - `src/components/PlaceSearch.tsx` — Debounced autocomplete place picker with dropdown.
 - `src/components/ErrorBoundary.tsx` — React error boundary wrapper.
@@ -63,6 +64,8 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 - `src/lib/dashboardQueries.ts` — Pure query/pagination rules for the dashboard (filters, badges, refresh per mode). Tested.
 - `src/lib/optimisticList.ts` — Pure list/count ops behind optimistic updates with rollback. Tested.
 - `src/lib/batchTranslate.ts` — Chunked batch-translate loop with injected API call. Tested.
+- `src/lib/planForm.ts` — Pure logic behind `usePlanForm`: plan→form/stops mapping, metadata diff, stop ops (add with per-day cap, remove/move + reindex), and `savePlan` (single atomic `PATCH /admin/plans/{id}` carrying metadata + full stop list, error path) with injected API. Tested.
+- `src/lib/placeForm.ts` — Pure logic behind `usePlaceForm`: bestFor tags, photos, ES translation-draft merge, and `savePlace` (PATCH dirty, error path) with injected API. Tested. (Dirty diff stays in `getDirtyFields`.)
 - `src/lib/raceGuard.ts` — Pure logic of the monotonic request-id race guard (stale initial must not touch `loading`; stale load-more clears its own flag). Tested.
 - `src/lib/asyncFlag.ts` — `withFlag`: raises/lowers a boolean in-flight flag around an async action (try/finally). Wraps `actionLoading` in all dashboard mutations. Tested.
 - `src/lib/constants.ts` — Re-exports taxonomy + `PRICE_RANGES`, `BEST_TIMES`, `STATUSES`, `MAX_STOPS_PER_DAY`.
@@ -73,6 +76,8 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 - `src/hooks/useFilterState.ts` — Dashboard filters: city, category, debounced name search.
 - `src/hooks/usePlacesData.ts` — Places list + pagination + badge counts + optimistic mutations with rollback.
 - `src/hooks/usePlansData.ts` — Plans list + pagination + unpublish/delete. Race-guarded with a monotonic request id (parity with `usePlacesData`).
+- `src/hooks/usePlanForm.ts` — Plan edit screen state (load, form, stops, ES translate, save, delete). React wiring over `src/lib/planForm.ts`.
+- `src/hooks/usePlaceForm.ts` — Place edit screen state (load, form, tags, photos, ES translate, AI description, subcategories, save). React wiring over `src/lib/placeForm.ts`.
 - `src/types/place.ts` — `PlaceData`, `PlacesResponse` types.
 - `src/types/plan.ts` — `PlanData`, `PlansResponse` types.
 
