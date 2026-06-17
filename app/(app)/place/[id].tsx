@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React from 'react';
 import {
     View,
     Text,
@@ -10,148 +10,43 @@ import {
     Image,
     Switch,
 } from 'react-native';
-import { showAlert } from '../../../src/lib/dialogs';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { api } from '../../../src/lib/api';
-import type { PlaceData, PlaceTranslateDraft } from '../../../src/types/place';
+import { useLocalSearchParams, Stack } from 'expo-router';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
-import { getDirtyFields as computeDirtyFields } from '../../../src/utils/getDirtyFields';
 import { CATEGORIES } from '../../../src/lib/constants';
-import { useTaxonomy } from '../../../src/hooks/useTaxonomy';
 import AddSubcategoryModal from '../../../src/components/AddSubcategoryModal';
+import { usePlaceForm } from '../../../src/hooks/usePlaceForm';
 
 const PRICE_RANGES = ['FREE', '$', '$$', '$$$', '$$$$'] as const;
 const BEST_TIMES = ['morning', 'lunch', 'afternoon', 'dinner', 'late_night'] as const;
 
 export default function PlaceEditScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    const router = useRouter();
-
-    const [place, setPlace] = useState<PlaceData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-
-    // Editable form state
-    const [form, setForm] = useState<Partial<PlaceData>>({});
-    const originalRef = useRef<PlaceData | null>(null);
-
-    // Translation state
-    const [translating, setTranslating] = useState(false);
-
-    // New tag / photo inputs
-    const [newTag, setNewTag] = useState('');
-    const [newPhotoUrl, setNewPhotoUrl] = useState('');
-
-    // Dynamic subcategories
-    const { byCategory, createSubcategories } = useTaxonomy();
-    const [addSubVisible, setAddSubVisible] = useState(false);
-
-    // AI description suggestion
-    const [suggesting, setSuggesting] = useState(false);
-
-    const loadPlace = useCallback(async () => {
-        setLoading(true);
-        const res = await api<PlaceData>(`/admin/places/${id}`);
-        if (res.data) {
-            setPlace(res.data);
-            setForm(res.data);
-            originalRef.current = res.data;
-        } else {
-            showAlert('Error', `Failed to load place: ${res.error}`);
-        }
-        setLoading(false);
-    }, [id]);
-
-    useEffect(() => {
-        loadPlace();
-    }, [loadPlace]);
-
-    const updateField = <K extends keyof PlaceData>(key: K, value: PlaceData[K]) => {
-        setForm((prev) => ({ ...prev, [key]: value }));
-    };
-
-    const getDirtyFields = (): Record<string, unknown> => {
-        const original = originalRef.current;
-        if (!original) return {};
-        return computeDirtyFields(original, form);
-    };
-
-    const handleSave = async () => {
-        const dirty = getDirtyFields();
-        if (Object.keys(dirty).length === 0) {
-            showAlert('No changes', 'Nothing to save.');
-            return;
-        }
-
-        setSaving(true);
-        const res = await api<PlaceData>(`/admin/places/${id}`, {
-            method: 'PATCH',
-            body: dirty,
-        });
-        setSaving(false);
-
-        if (res.data) {
-            originalRef.current = res.data;
-            setForm(res.data);
-            setPlace(res.data);
-            showAlert('Saved', 'Place updated successfully.');
-            router.back();
-        } else {
-            showAlert('Error', `Failed to save: ${res.error}`);
-        }
-    };
-
-    // Tag management for bestFor
-    const addTag = () => {
-        const trimmed = newTag.trim();
-        if (!trimmed) return;
-        const current = form.bestFor ?? [];
-        if (!current.includes(trimmed)) {
-            updateField('bestFor', [...current, trimmed]);
-        }
-        setNewTag('');
-    };
-
-    const removeTag = (tag: string) => {
-        updateField('bestFor', (form.bestFor ?? []).filter((t) => t !== tag));
-    };
-
-    // Photo management
-    const addPhoto = () => {
-        const trimmed = newPhotoUrl.trim();
-        if (!trimmed) return;
-        const current = form.photos ?? [];
-        updateField('photos', [...current, trimmed]);
-        setNewPhotoUrl('');
-    };
-
-    const removePhoto = (url: string) => {
-        updateField('photos', (form.photos ?? []).filter((p) => p !== url));
-    };
-
-    const handleSuggestTranslation = async () => {
-        if (place?.source !== 'curated') {
-            showAlert('Not curated', 'Translation is only available for curated places.');
-            return;
-        }
-        setTranslating(true);
-        const res = await api<PlaceTranslateDraft>(`/admin/places/${id}/translate`, { method: 'POST' });
-        setTranslating(false);
-        if (res.data) {
-            setForm(prev => ({
-                ...prev,
-                nameEs: res.data!.nameEs ?? prev.nameEs,
-                whyThisPlaceEs: res.data!.whyThisPlaceEs ?? prev.whyThisPlaceEs,
-                bestTimeEs: res.data!.bestTimeEs ?? prev.bestTimeEs,
-                neighborhoodEs: res.data!.neighborhoodEs ?? prev.neighborhoodEs,
-                subcategoriesEs: res.data!.subcategoriesEs ?? prev.subcategoriesEs,
-                bestForEs: res.data!.bestForEs ?? prev.bestForEs,
-                suitableForEs: res.data!.suitableForEs ?? prev.suitableForEs,
-            }));
-        } else {
-            showAlert('Error', `Translation failed: ${res.error}`);
-        }
-    };
+    const {
+        place,
+        loading,
+        saving,
+        form,
+        updateField,
+        hasDirty,
+        handleSave,
+        translating,
+        suggesting,
+        newTag,
+        setNewTag,
+        newPhotoUrl,
+        setNewPhotoUrl,
+        addTag,
+        removeTag,
+        addPhoto,
+        removePhoto,
+        handleSuggestTranslation,
+        handleSuggestDescription,
+        byCategory,
+        addSubVisible,
+        setAddSubVisible,
+        createSubcategoriesForCurrentCategory,
+        appendSubcategories,
+    } = usePlaceForm(id);
 
     if (loading) {
         return (
@@ -168,8 +63,6 @@ export default function PlaceEditScreen() {
             </View>
         );
     }
-
-    const hasDirty = Object.keys(getDirtyFields()).length > 0;
 
     return (
         <>
@@ -269,17 +162,8 @@ export default function PlaceEditScreen() {
                                         <AddSubcategoryModal
                                             visible={addSubVisible}
                                             categoryKey={form.category!}
-                                            onCreate={(drafts) => createSubcategories(
-                                                drafts.map((d) => ({ categoryKey: form.category!, ...d })),
-                                            )}
-                                            onCreated={(keys) => {
-                                                // Functional update: onCreated can fire more than once
-                                                // (partial batch + retry) — never clobber earlier keys.
-                                                setForm((prev) => ({
-                                                    ...prev,
-                                                    subcategories: [...(prev.subcategories ?? []), ...keys],
-                                                }));
-                                            }}
+                                            onCreate={createSubcategoriesForCurrentCategory}
+                                            onCreated={appendSubcategories}
                                             onClose={() => setAddSubVisible(false)}
                                         />
                                     </>
@@ -303,16 +187,7 @@ export default function PlaceEditScreen() {
                     <Pressable
                         style={[styles.suggestBtn, suggesting && styles.suggestBtnDisabled]}
                         disabled={suggesting}
-                        onPress={async () => {
-                            setSuggesting(true);
-                            const res = await api<{ whyThisPlace: string }>(`/admin/places/${id}/suggest-description`, { method: 'POST' });
-                            setSuggesting(false);
-                            if (res.data?.whyThisPlace) {
-                                updateField('whyThisPlace', res.data.whyThisPlace);
-                            } else {
-                                showAlert('Error', res.error ?? 'Could not generate description.');
-                            }
-                        }}
+                        onPress={handleSuggestDescription}
                     >
                         {suggesting
                             ? <ActivityIndicator size="small" color={colors.textSecondary} />
