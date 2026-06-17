@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import {
-    Modal,
     View,
     Text,
     TextInput,
     Pressable,
     ScrollView,
     StyleSheet,
-    KeyboardAvoidingView,
-    Platform,
     ActivityIndicator,
 } from 'react-native';
 import { colors, fonts, spacing, borderRadius } from '../lib/theme';
+import BaseModal, { baseModalStyles } from './BaseModal';
 import {
     isDraftComplete,
     validateDraft,
@@ -143,16 +141,16 @@ export default function AddSubcategoryModal({
     const createLabel = rows.length > 1 ? `Create ${rows.length}` : 'Create';
 
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
-            <KeyboardAvoidingView
-                style={styles.overlay}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
-                <View style={styles.card}>
-                    <Text style={styles.title}>New Subcategories</Text>
-                    <Text style={styles.subtitle}>Category: {categoryKey}</Text>
+        <BaseModal
+            visible={visible}
+            onRequestClose={handleCancel}
+            avoidKeyboard
+            cardStyle={styles.card}
+        >
+            <Text style={styles.title}>New Subcategories</Text>
+            <Text style={styles.subtitle}>Category: {categoryKey}</Text>
 
-                    <ScrollView style={styles.rowList} keyboardShouldPersistTaps="handled">
+            <ScrollView style={styles.rowList} keyboardShouldPersistTaps="handled">
                         {rows.map((row, index) => (
                             <View key={row.id} style={styles.rowCard}>
                                 {rows.length > 1 && (
@@ -205,47 +203,29 @@ export default function AddSubcategoryModal({
 
                     {!!submitError && <Text style={styles.errorText}>{submitError}</Text>}
 
-                    <View style={styles.actions}>
-                        <Pressable style={styles.cancelBtn} onPress={handleCancel} disabled={saving}>
-                            <Text style={styles.cancelText}>Cancel</Text>
-                        </Pressable>
-                        <Pressable
-                            style={[styles.createBtn, (!isValid || saving) && styles.disabledBtn]}
-                            onPress={handleConfirm}
-                            disabled={!isValid || saving}
-                        >
-                            {saving
-                                ? <ActivityIndicator color="#fff" size="small" />
-                                : <Text style={styles.createText}>{createLabel}</Text>
-                            }
-                        </Pressable>
-                    </View>
-                </View>
-            </KeyboardAvoidingView>
-        </Modal>
+            <View style={baseModalStyles.actions}>
+                <Pressable style={styles.cancelBtn} onPress={handleCancel} disabled={saving}>
+                    <Text style={styles.cancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                    style={[styles.createBtn, (!isValid || saving) && styles.disabledBtn]}
+                    onPress={handleConfirm}
+                    disabled={!isValid || saving}
+                >
+                    {saving
+                        ? <ActivityIndicator color="#fff" size="small" />
+                        : <Text style={styles.createText}>{createLabel}</Text>
+                    }
+                </Pressable>
+            </View>
+        </BaseModal>
     );
 }
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: spacing.lg,
-    },
+    // Extends BaseModal's card: the row list can grow, so cap the height.
     card: {
-        backgroundColor: colors.bgCard,
-        borderRadius: borderRadius.lg,
-        padding: spacing.lg,
-        width: '100%',
-        maxWidth: 400,
         maxHeight: '85%',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 8,
     },
     title: {
         fontSize: 20,
@@ -319,12 +299,6 @@ const styles = StyleSheet.create({
         color: colors.electricBlue,
         fontFamily: fonts.bodySemiBold,
         fontSize: 14,
-    },
-    actions: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        gap: spacing.md,
-        marginTop: spacing.md,
     },
     cancelBtn: {
         paddingHorizontal: 20,

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors, fonts } from '../lib/theme';
+import BaseModal from './BaseModal';
 
 export type MenuOption = {
     label: string;
@@ -20,47 +21,46 @@ type Props = {
  */
 export default function OptionsMenuModal({ visible, title, options, onClose }: Props) {
     return (
-        <Modal
+        <BaseModal
             visible={visible}
-            transparent
-            animationType="fade"
             onRequestClose={onClose}
-            accessibilityViewIsModal
+            dismissOnBackdropPress
+            overlayStyle={styles.overlay}
+            cardStyle={styles.card}
         >
-            <Pressable style={styles.overlay} onPress={onClose}>
-                <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
-                    <Text style={styles.title}>{title}</Text>
-                    {options.map((opt) => (
-                        <Pressable
-                            key={opt.label}
-                            accessibilityRole="button"
-                            style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                            onPress={() => { onClose(); opt.onSelect(); }}
-                        >
-                            <Text style={styles.optionText}>{opt.label}</Text>
-                        </Pressable>
-                    ))}
-                    <Pressable
-                        accessibilityRole="button"
-                        style={({ pressed }) => [styles.cancel, pressed && styles.optionPressed]}
-                        onPress={onClose}
-                    >
-                        <Text style={styles.cancelText}>Cancel</Text>
-                    </Pressable>
+            <Text style={styles.title}>{title}</Text>
+            {options.map((opt) => (
+                <Pressable
+                    key={opt.label}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
+                    onPress={() => { onClose(); opt.onSelect(); }}
+                >
+                    <Text style={styles.optionText}>{opt.label}</Text>
                 </Pressable>
+            ))}
+            <Pressable
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.cancel, pressed && styles.optionPressed]}
+                onPress={onClose}
+            >
+                <Text style={styles.cancelText}>Cancel</Text>
             </Pressable>
-        </Modal>
+        </BaseModal>
     );
 }
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
-        alignItems: 'center', justifyContent: 'center', padding: 24,
-    },
+    // Darker backdrop than the form modals; the menu sits on a flat surface.
+    overlay: { backgroundColor: 'rgba(0,0,0,0.55)', padding: 24 },
     card: {
-        backgroundColor: colors.bgMain, borderRadius: 16, paddingVertical: 12,
-        width: '100%', maxWidth: 360,
+        backgroundColor: colors.bgMain,
+        borderRadius: 16,
+        padding: 0,
+        paddingVertical: 12,
+        maxWidth: 360,
+        shadowOpacity: 0,
+        elevation: 0,
     },
     title: {
         color: colors.textSecondary, fontFamily: fonts.bodySemiBold, fontSize: 13,
