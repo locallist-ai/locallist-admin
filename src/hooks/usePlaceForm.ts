@@ -8,10 +8,10 @@ import type { PlaceData, PlaceTranslateDraft } from '../types/place';
 import type { SubcategoryDraft } from '../lib/subcategories';
 import {
     addPhoto as addPhotoPure,
-    addTag as addTagPure,
     applyTranslationDraft,
     removePhoto as removePhotoPure,
     removeTag as removeTagPure,
+    toggleTag as toggleTagPure,
     savePlace,
 } from '../lib/placeForm';
 
@@ -35,7 +35,6 @@ export function usePlaceForm(id: string) {
     const [translating, setTranslating] = useState(false);
     const [suggesting, setSuggesting] = useState(false);
 
-    const [newTag, setNewTag] = useState('');
     const [newPhotoUrl, setNewPhotoUrl] = useState('');
 
     const { byCategory, createSubcategories } = useTaxonomy();
@@ -90,12 +89,13 @@ export function usePlaceForm(id: string) {
         }
     };
 
-    // bestFor tags
-    const addTag = () => {
-        updateField('bestFor', addTagPure(form.bestFor ?? [], newTag));
-        setNewTag('');
-    };
+    // bestFor: predefined multi-select chips. removeTag stays for legacy
+    // free-form values not in the BEST_FOR list (kept so they are not lost).
+    const toggleBestFor = (tag: string) => updateField('bestFor', toggleTagPure(form.bestFor ?? [], tag));
     const removeTag = (tag: string) => updateField('bestFor', removeTagPure(form.bestFor ?? [], tag));
+
+    // bestTimes: multi-select chips over the fixed BEST_TIMES list.
+    const toggleBestTime = (time: string) => updateField('bestTimes', toggleTagPure(form.bestTimes ?? [], time));
 
     // photos
     const addPhoto = () => {
@@ -152,11 +152,10 @@ export function usePlaceForm(id: string) {
         handleSave,
         translating,
         suggesting,
-        newTag,
-        setNewTag,
         newPhotoUrl,
         setNewPhotoUrl,
-        addTag,
+        toggleBestFor,
+        toggleBestTime,
         removeTag,
         addPhoto,
         removePhoto,

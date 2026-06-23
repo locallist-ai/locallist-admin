@@ -14,7 +14,7 @@ import { useRouter, Stack } from 'expo-router';
 import { api } from '../../../src/lib/api';
 import type { PlaceData } from '../../../src/types/place';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
-import { CATEGORIES, PRICE_RANGES, BEST_TIMES, STATUSES } from '../../../src/lib/constants';
+import { CATEGORIES, PRICE_RANGES, BEST_TIMES, BEST_FOR, STATUSES } from '../../../src/lib/constants';
 import { useTaxonomy } from '../../../src/hooks/useTaxonomy';
 
 export default function PlaceCreateScreen() {
@@ -27,7 +27,6 @@ export default function PlaceCreateScreen() {
         status: 'published',
     });
 
-    const [newTag, setNewTag] = useState('');
     const [newPhotoUrl, setNewPhotoUrl] = useState('');
 
     const updateField = <K extends keyof PlaceData>(key: K, value: PlaceData[K]) => {
@@ -61,7 +60,7 @@ export default function PlaceCreateScreen() {
                 latitude: form.latitude,
                 longitude: form.longitude,
                 bestFor: form.bestFor,
-                bestTime: form.bestTime,
+                bestTimes: form.bestTimes,
                 priceRange: form.priceRange,
                 photos: form.photos,
                 status: form.status || 'published',
@@ -77,19 +76,20 @@ export default function PlaceCreateScreen() {
         }
     };
 
-    // Tag management
-    const addTag = () => {
-        const trimmed = newTag.trim();
-        if (!trimmed) return;
+    // bestFor: predefined multi-select chips (legacy free-form values stay removable).
+    const toggleBestFor = (tag: string) => {
         const current = form.bestFor ?? [];
-        if (!current.includes(trimmed)) {
-            updateField('bestFor', [...current, trimmed]);
-        }
-        setNewTag('');
+        updateField('bestFor', current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag]);
     };
 
     const removeTag = (tag: string) => {
         updateField('bestFor', (form.bestFor ?? []).filter((t) => t !== tag));
+    };
+
+    // bestTimes: multi-select chips over the fixed BEST_TIMES list.
+    const toggleBestTime = (time: string) => {
+        const current = form.bestTimes ?? [];
+        updateField('bestTimes', current.includes(time) ? current.filter((t) => t !== time) : [...current, time]);
     };
 
     // Photo management
@@ -234,40 +234,46 @@ export default function PlaceCreateScreen() {
                 <View style={styles.section}>
                     <FieldLabel label="Best For" />
                     <View style={styles.chipRow}>
-                        {(form.bestFor ?? []).map((tag) => (
-                            <Pressable key={tag} style={styles.tagChip} onPress={() => removeTag(tag)}>
-                                <Text style={styles.tagChipText}>{tag} ×</Text>
-                            </Pressable>
-                        ))}
-                    </View>
-                    <View style={styles.addRow}>
-                        <TextInput
-                            style={[styles.input, { flex: 1 }]}
-                            value={newTag}
-                            onChangeText={setNewTag}
-                            placeholder="Add tag..."
-                            placeholderTextColor={colors.textSecondary}
-                            onSubmitEditing={addTag}
-                            returnKeyType="done"
-                        />
-                        <Pressable style={styles.addBtn} onPress={addTag}>
-                            <Text style={styles.addBtnText}>+</Text>
-                        </Pressable>
+                        {BEST_FOR.map((tag) => {
+                            const isActive = (form.bestFor ?? []).includes(tag);
+                            return (
+                                <Pressable
+                                    key={tag}
+                                    style={[styles.chip, isActive && styles.chipActive]}
+                                    onPress={() => toggleBestFor(tag)}
+                                >
+                                    <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                                        {tag}
+                                    </Text>
+                                </Pressable>
+                            );
+                        })}
+                        {/* Legacy free-form values not in BEST_FOR: removable so they are not lost. */}
+                        {(form.bestFor ?? [])
+                            .filter((tag) => !BEST_FOR.includes(tag as (typeof BEST_FOR)[number]))
+                            .map((tag) => (
+                                <Pressable key={tag} style={styles.tagChip} onPress={() => removeTag(tag)}>
+                                    <Text style={styles.tagChipText}>{tag} ×</Text>
+                                </Pressable>
+                            ))}
                     </View>
 
                     <FieldLabel label="Best Time" />
                     <View style={styles.chipRow}>
-                        {BEST_TIMES.map((time) => (
-                            <Pressable
-                                key={time}
-                                style={[styles.chip, form.bestTime === time && styles.chipActive]}
-                                onPress={() => updateField('bestTime', form.bestTime === time ? undefined : time)}
-                            >
-                                <Text style={[styles.chipText, form.bestTime === time && styles.chipTextActive]}>
-                                    {time}
-                                </Text>
-                            </Pressable>
-                        ))}
+                        {BEST_TIMES.map((time) => {
+                            const isActive = (form.bestTimes ?? []).includes(time);
+                            return (
+                                <Pressable
+                                    key={time}
+                                    style={[styles.chip, isActive && styles.chipActive]}
+                                    onPress={() => toggleBestTime(time)}
+                                >
+                                    <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                                        {time}
+                                    </Text>
+                                </Pressable>
+                            );
+                        })}
                     </View>
 
                     <FieldLabel label="Price Range" />

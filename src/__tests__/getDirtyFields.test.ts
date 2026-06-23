@@ -22,7 +22,7 @@ const basePlace: PlaceData = {
     longitude: -3.6977,
     bestFor: ['work', 'brunch'],
     suitableFor: ['solo', 'couples'],
-    bestTime: 'morning',
+    bestTimes: ['morning'],
     priceRange: '$$',
     photos: ['https://example.com/a.jpg'],
     googlePlaceId: 'gpid-xyz',

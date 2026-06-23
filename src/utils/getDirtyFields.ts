@@ -7,11 +7,11 @@ import type { PlaceData } from '../types/place';
 export const PLACE_EDITABLE_KEYS: (keyof PlaceData)[] = [
     'name', 'category', 'subcategories', 'whyThisPlace',
     'neighborhood', 'city', 'latitude', 'longitude',
-    'bestFor', 'suitableFor', 'bestTime', 'priceRange',
+    'bestFor', 'suitableFor', 'bestTimes', 'priceRange',
     'photos', 'googlePlaceId', 'source', 'sourceUrl',
     'visitDurationMin',
     // i18n ES fields
-    'nameEs', 'whyThisPlaceEs', 'bestTimeEs', 'neighborhoodEs',
+    'nameEs', 'whyThisPlaceEs', 'bestTimesEs', 'neighborhoodEs',
     'subcategoriesEs', 'bestForEs', 'suitableForEs', 'translationStatusEs',
 ];
 
@@ -24,10 +24,10 @@ const NUMERIC_KEYS = new Set<keyof PlaceData>(['latitude', 'longitude', 'visitDu
 // but the form stores cleared inputs as null. Normalize dirty nulls to the
 // clearing sentinel so the user can actually erase a translation.
 const I18N_STRING_KEYS = new Set<keyof PlaceData>([
-    'nameEs', 'whyThisPlaceEs', 'bestTimeEs', 'neighborhoodEs',
+    'nameEs', 'whyThisPlaceEs', 'neighborhoodEs',
 ]);
 const I18N_LIST_KEYS = new Set<keyof PlaceData>([
-    'subcategoriesEs', 'bestForEs', 'suitableForEs',
+    'subcategoriesEs', 'bestForEs', 'suitableForEs', 'bestTimesEs',
 ]);
 
 export function getDirtyFields(

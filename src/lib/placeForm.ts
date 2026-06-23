@@ -18,6 +18,13 @@ export function removeTag(list: string[], tag: string): string[] {
     return list.filter((t) => t !== tag);
 }
 
+/** Toggle a trimmed tag in a multi-select list (add if absent, remove if present). */
+export function toggleTag(list: string[], raw: string): string[] {
+    const tag = raw.trim();
+    if (!tag) return list;
+    return list.includes(tag) ? list.filter((t) => t !== tag) : [...list, tag];
+}
+
 /** Append a trimmed photo URL, ignoring blanks (duplicates are allowed). */
 export function addPhoto(list: string[], raw: string): string[] {
     const url = raw.trim();
@@ -42,7 +49,7 @@ export function applyTranslationDraft(
         ...form,
         nameEs: draft.nameEs ?? form.nameEs,
         whyThisPlaceEs: draft.whyThisPlaceEs ?? form.whyThisPlaceEs,
-        bestTimeEs: draft.bestTimeEs ?? form.bestTimeEs,
+        bestTimesEs: draft.bestTimesEs ?? form.bestTimesEs,
         neighborhoodEs: draft.neighborhoodEs ?? form.neighborhoodEs,
         subcategoriesEs: draft.subcategoriesEs ?? form.subcategoriesEs,
         bestForEs: draft.bestForEs ?? form.bestForEs,
