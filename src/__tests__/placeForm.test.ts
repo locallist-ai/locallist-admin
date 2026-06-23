@@ -11,6 +11,7 @@ import {
     applyTranslationDraft,
     removePhoto,
     removeTag,
+    toggleTag,
     savePlace,
     type SavePlaceApi,
 } from '../lib/placeForm';
@@ -29,6 +30,21 @@ describe('addTag / removeTag', () => {
 
     it('quita el tag', () => {
         expect(removeTag(['a', 'b'], 'a')).toEqual(['b']);
+    });
+});
+
+describe('toggleTag (multi-select)', () => {
+    it('añade el tag recortado si no está', () => {
+        expect(toggleTag(['a'], ' b ')).toEqual(['a', 'b']);
+    });
+
+    it('quita el tag si ya está', () => {
+        expect(toggleTag(['a', 'b'], 'a')).toEqual(['b']);
+    });
+
+    it('ignora vacío (misma referencia)', () => {
+        const list = ['a'];
+        expect(toggleTag(list, '   ')).toBe(list);
     });
 });
 
@@ -55,14 +71,14 @@ describe('applyTranslationDraft', () => {
 
     it('sobrescribe solo los campos que el borrador trae', () => {
         const draft = {
-            nameEs: 'Nuevo', whyThisPlaceEs: null, bestTimeEs: 'tarde',
+            nameEs: 'Nuevo', whyThisPlaceEs: null, bestTimesEs: ['tarde'],
             neighborhoodEs: null, subcategoriesEs: null, subcategoryEs: null,
             bestForEs: null, suitableForEs: null,
         } as PlaceTranslateDraft;
         const next = applyTranslationDraft(form, draft);
         expect(next.nameEs).toBe('Nuevo');         // draft gana
         expect(next.whyThisPlaceEs).toBe('mantener'); // null no pisa
-        expect(next.bestTimeEs).toBe('tarde');
+        expect(next.bestTimesEs).toEqual(['tarde']);
         expect(next.bestForEs).toEqual(['a']);     // null no pisa
         expect(next.name).toBe('X');               // campos no-ES intactos
     });

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
-import { CATEGORIES } from '../../../src/lib/constants';
+import { CATEGORIES, BEST_FOR } from '../../../src/lib/constants';
 import AddSubcategoryModal from '../../../src/components/AddSubcategoryModal';
 import { usePlaceForm } from '../../../src/hooks/usePlaceForm';
 
@@ -31,11 +31,10 @@ export default function PlaceEditScreen() {
         handleSave,
         translating,
         suggesting,
-        newTag,
-        setNewTag,
         newPhotoUrl,
         setNewPhotoUrl,
-        addTag,
+        toggleBestFor,
+        toggleBestTime,
         removeTag,
         addPhoto,
         removePhoto,
@@ -244,42 +243,46 @@ export default function PlaceEditScreen() {
                 <View style={styles.section}>
                     <FieldLabel label="Best For" />
                     <View style={styles.chipRow}>
-                        {(form.bestFor ?? []).map((tag) => (
-                            <Pressable key={tag} style={styles.tagChip} onPress={() => removeTag(tag)}>
-                                <Text style={styles.tagChipText}>{tag} ×</Text>
-                            </Pressable>
-                        ))}
-                    </View>
-                    <View style={styles.addRow}>
-                        <TextInput
-                            style={[styles.input, { flex: 1 }]}
-                            value={newTag}
-                            onChangeText={setNewTag}
-                            placeholder="Add tag..."
-                            placeholderTextColor={colors.textSecondary}
-                            onSubmitEditing={addTag}
-                            returnKeyType="done"
-                        />
-                        <Pressable style={styles.addBtn} onPress={addTag}>
-                            <Text style={styles.addBtnText}>+</Text>
-                        </Pressable>
+                        {BEST_FOR.map((tag) => {
+                            const isActive = (form.bestFor ?? []).includes(tag);
+                            return (
+                                <Pressable
+                                    key={tag}
+                                    style={[styles.chip, isActive && styles.chipActive]}
+                                    onPress={() => toggleBestFor(tag)}
+                                >
+                                    <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                                        {tag}
+                                    </Text>
+                                </Pressable>
+                            );
+                        })}
+                        {/* Legacy free-form values not in BEST_FOR: removable so they are not lost. */}
+                        {(form.bestFor ?? [])
+                            .filter((tag) => !BEST_FOR.includes(tag as (typeof BEST_FOR)[number]))
+                            .map((tag) => (
+                                <Pressable key={tag} style={styles.tagChip} onPress={() => removeTag(tag)}>
+                                    <Text style={styles.tagChipText}>{tag} ×</Text>
+                                </Pressable>
+                            ))}
                     </View>
 
                     <FieldLabel label="Best Time" />
                     <View style={styles.chipRow}>
-                        {BEST_TIMES.map((time) => (
-                            <Pressable
-                                key={time}
-                                style={[styles.chip, form.bestTime === time && styles.chipActive]}
-                                onPress={() => updateField('bestTime', form.bestTime === time ? undefined : time)}
-                            >
-                                <Text
-                                    style={[styles.chipText, form.bestTime === time && styles.chipTextActive]}
+                        {BEST_TIMES.map((time) => {
+                            const isActive = (form.bestTimes ?? []).includes(time);
+                            return (
+                                <Pressable
+                                    key={time}
+                                    style={[styles.chip, isActive && styles.chipActive]}
+                                    onPress={() => toggleBestTime(time)}
                                 >
-                                    {time}
-                                </Text>
-                            </Pressable>
-                        ))}
+                                    <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                                        {time}
+                                    </Text>
+                                </Pressable>
+                            );
+                        })}
                     </View>
 
                     <FieldLabel label="Price Range" />
@@ -391,12 +394,12 @@ export default function PlaceEditScreen() {
                                 multiline numberOfLines={3} textAlignVertical="top"
                             />
 
-                            <FieldLabel label="Best Time (ES)" />
+                            <FieldLabel label="Best Time (ES), comma separated" />
                             <TextInput
                                 style={styles.input}
-                                value={form.bestTimeEs ?? ''}
-                                onChangeText={(v) => updateField('bestTimeEs', v || null)}
-                                placeholder={form.bestTime ?? ''}
+                                value={form.bestTimesEs?.join(', ') ?? ''}
+                                onChangeText={(v) => updateField('bestTimesEs', v ? v.split(',').map((s) => s.trim()).filter(Boolean) : null)}
+                                placeholder={(form.bestTimes ?? []).join(', ')}
                                 placeholderTextColor={colors.textSecondary}
                             />
 

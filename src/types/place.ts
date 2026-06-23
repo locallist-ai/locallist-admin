@@ -12,7 +12,7 @@ export interface PlaceData {
     whyThisPlace: string;
     bestFor?: string[];
     suitableFor?: string[];
-    bestTime?: string;
+    bestTimes?: string[];
     priceRange?: string;
     photos?: string[];
     googlePlaceId?: string;
@@ -30,7 +30,7 @@ export interface PlaceData {
     // i18n ES fields (curated places only)
     nameEs?: string | null;
     whyThisPlaceEs?: string | null;
-    bestTimeEs?: string | null;
+    bestTimesEs?: string[] | null;
     neighborhoodEs?: string | null;
     subcategoriesEs?: string[] | null;
     subcategoryEs?: string | null;  // deprecated adapter
@@ -43,7 +43,7 @@ export interface PlaceData {
 export interface PlaceTranslateDraft {
     nameEs: string | null;
     whyThisPlaceEs: string | null;
-    bestTimeEs: string | null;
+    bestTimesEs: string[] | null;
     neighborhoodEs: string | null;
     subcategoriesEs: string[] | null;
     subcategoryEs: string | null;   // deprecated adapter
