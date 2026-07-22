@@ -166,6 +166,7 @@ export default function DashboardScreen() {
                     isDesktop={isDesktop}
                     onRefresh={handleRefresh}
                     onCreatePress={handleCreatePress}
+                    onAnalyticsPress={() => router.push('/analytics')}
                 />
 
                 {/* Segment control */}
