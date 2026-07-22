@@ -1,87 +1,47 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { shouldApplyResponse } from '../lib/raceGuard';
-import {
-    aggregateChatTurns,
-    aggregatePlanMetrics,
-    buildChatTurnsQuery,
-    buildChatTurnsStatsQuery,
-    buildPlanMetricsQuery,
-    buildPlanMetricsStatsQuery,
-    fetchAllPages,
-    rangeBounds,
-    type AdminChatTurn,
-    type AdminChatTurnsListResponse,
-    type AdminChatTurnsStats,
-    type AdminPlanMetric,
-    type AdminPlanMetricsListResponse,
-    type AdminPlanMetricsStats,
-    type ChatTurnsAggregate,
-    type PlanMetricsAggregate,
-    type RangeDays,
-} from '../lib/analyticsQueries';
+import { loadAnalytics, type AnalyticsSnapshot, type RangeDays } from '../lib/analyticsQueries';
 
 /**
- * Data side of the Analytics screen. Per range it issues four requests
- * in parallel: the two /stats endpoints (exact scalars over the range)
- * and the two paginated lists, accumulated client-side for the
- * distributions the backend does not aggregate (per-day series,
- * latency percentiles, provider/model mix). React wiring over
- * `src/lib/analyticsQueries.ts`.
+ * Data side of the Analytics screen: thin React wiring over
+ * `loadAnalytics` (src/lib/analyticsQueries.ts), which owns the four
+ * parallel requests, the page accumulation and the aggregation.
+ *
+ * Every load gets its own AbortController; launching a new one (range
+ * toggle, retry) aborts the previous so a superseded load stops
+ * paginating instead of burning the shared admin rate limit, and
+ * unmount aborts whatever is in flight. A monotonic request id guards
+ * state on top of that (an aborted load still resolves).
  *
  * EXTENSION POINT (fase 2 — monetización): when the backend exposes
- * /admin/billing/metrics, add its stats request to the Promise.all
- * below and surface a third block alongside chat/plans.
+ * /admin/billing/metrics, add its request to `loadAnalytics` and
+ * surface a third block alongside chat/plans.
  */
 export function useAnalyticsData() {
     const [rangeDays, setRangeDays] = useState<RangeDays>(7);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    /** True when a list hit the client page cap: distributions are a sample. */
-    const [truncated, setTruncated] = useState(false);
+    const [snapshot, setSnapshot] = useState<AnalyticsSnapshot | null>(null);
 
-    const [chatStats, setChatStats] = useState<AdminChatTurnsStats | null>(null);
-    const [chatAggregate, setChatAggregate] = useState<ChatTurnsAggregate | null>(null);
-    const [planStats, setPlanStats] = useState<AdminPlanMetricsStats | null>(null);
-    const [planAggregate, setPlanAggregate] = useState<PlanMetricsAggregate | null>(null);
-
-    // Monotonic id so a stale response can never clobber a newer range.
     const requestIdRef = useRef(0);
+    const abortRef = useRef<AbortController | null>(null);
 
     const load = useCallback(async (days: RangeDays) => {
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+
         const reqId = ++requestIdRef.current;
         setLoading(true);
-        setError(null);
+        // The previous range's data, error and truncated note must not
+        // linger under the new range's spinner.
+        setSnapshot(null);
 
-        const range = rangeBounds(days);
-
-        const [chatStatsRes, chatTurnsRes, planStatsRes, planMetricsRes] = await Promise.all([
-            api<AdminChatTurnsStats>(buildChatTurnsStatsQuery(range)),
-            fetchAllPages<AdminChatTurn>(async (limit, offset) => {
-                const res = await api<AdminChatTurnsListResponse>(buildChatTurnsQuery(range, limit, offset));
-                return {
-                    data: res.data ? { items: res.data.turns, total: res.data.total } : null,
-                    error: res.error,
-                };
-            }),
-            api<AdminPlanMetricsStats>(buildPlanMetricsStatsQuery(range)),
-            fetchAllPages<AdminPlanMetric>(async (limit, offset) => {
-                const res = await api<AdminPlanMetricsListResponse>(buildPlanMetricsQuery(range, limit, offset));
-                return {
-                    data: res.data ? { items: res.data.metrics, total: res.data.total } : null,
-                    error: res.error,
-                };
-            }),
-        ]);
+        const result = await loadAnalytics(api, days, { signal: controller.signal });
 
         if (!shouldApplyResponse(reqId, requestIdRef.current)) return;
 
-        setChatStats(chatStatsRes.data);
-        setChatAggregate(aggregateChatTurns(chatTurnsRes.items, range));
-        setPlanStats(planStatsRes.data);
-        setPlanAggregate(aggregatePlanMetrics(planMetricsRes.items, range));
-        setTruncated(chatTurnsRes.truncated || planMetricsRes.truncated);
-        setError(chatStatsRes.error ?? chatTurnsRes.error ?? planStatsRes.error ?? planMetricsRes.error);
+        setSnapshot(result);
         setLoading(false);
     }, []);
 
@@ -89,16 +49,19 @@ export function useAnalyticsData() {
         load(rangeDays);
     }, [rangeDays, load]);
 
+    // Unmounting aborts whatever is still paginating.
+    useEffect(() => () => abortRef.current?.abort(), []);
+
     return {
         rangeDays,
         setRangeDays,
         loading,
-        error,
-        truncated,
-        chatStats,
-        chatAggregate,
-        planStats,
-        planAggregate,
+        error: snapshot?.error ?? null,
+        truncated: snapshot?.truncated ?? false,
+        chatStats: snapshot?.chatStats ?? null,
+        chatAggregate: snapshot?.chatAggregate ?? null,
+        planStats: snapshot?.planStats ?? null,
+        planAggregate: snapshot?.planAggregate ?? null,
         reload: () => load(rangeDays),
     };
 }

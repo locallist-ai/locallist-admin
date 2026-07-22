@@ -13,8 +13,19 @@
  * - GET /admin/analytics/plan-metrics/stats  ?from&to&city
  *
  * Scalars exact over the range (totals, rates, averages) come from the
- * /stats endpoints; distributions come from the paginated lists, capped
- * at ANALYTICS_MAX_PAGES pages and flagged `truncated` beyond that.
+ * /stats endpoints; distributions come from the paginated lists (newest
+ * first — CreatedAt DESC), capped at ANALYTICS_MAX_PAGES pages and
+ * flagged `truncated` beyond that: a truncated sample is the MOST
+ * RECENT rows of the range, so older days may be incomplete.
+ *
+ * Wire-format gotchas:
+ * - The backend serializes with `WhenWritingNull`: every `| null` field
+ *   below arrives as an ABSENT property (undefined) at runtime. Keep
+ *   null checks loose (`!= null` / `?? `), never `=== null`.
+ * - `avgSlotCompleteness: 0` in the stats DTO is ambiguous: the backend
+ *   returns 0 both when no turn carried a slotCompleteness value and
+ *   when the real average is 0. Treat it as "no signal" only when
+ *   `totalTurns` is 0; otherwise display it as-is.
  */
 
 // ─── Backend DTOs (camelCase over the wire) ──────────────────────────
@@ -124,9 +135,15 @@ export interface AnalyticsRange {
     to: string;
 }
 
+/**
+ * Anchored to UTC midnight so a range of N days yields exactly N daily
+ * buckets: `from` is 00:00Z of (today − N−1 days) and `to` is `now`.
+ * Only the last bucket ("today") is partial.
+ */
 export function rangeBounds(days: RangeDays, now: Date = new Date()): AnalyticsRange {
+    const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
     return {
-        from: new Date(now.getTime() - days * 86_400_000).toISOString(),
+        from: new Date(todayUtc - (days - 1) * 86_400_000).toISOString(),
         to: now.toISOString(),
     };
 }
@@ -182,40 +199,76 @@ export interface AnalyticsPageResponse<T> {
 export interface FetchAllResult<T> {
     items: T[];
     total: number;
-    /** True when the cap stopped the loop before reaching `total`. */
+    /** True when the cap or an abort stopped the loop before `total`. */
     truncated: boolean;
+    /** True when the provided AbortSignal fired mid-loop. */
+    aborted: boolean;
     error: string | null;
+}
+
+export interface FetchAllOptions<T> {
+    pageLimit?: number;
+    maxPages?: number;
+    /** Stops the loop between pages when it fires (stale range change). */
+    signal?: AbortSignal;
+    /**
+     * Deduplicates rows across page boundaries: the backend orders by
+     * CreatedAt DESC without a tiebreaker, so tied timestamps at a page
+     * boundary can repeat a row on the next page.
+     */
+    getId?: (item: T) => string;
 }
 
 /**
  * Accumulates every page of a list endpoint (API call injected so the
  * loop is unit-testable). Stops when all `total` rows are collected,
- * when the server returns a short page, or at `maxPages` — the last
- * case flags the result as truncated so the UI can say "sample".
+ * when the server returns a short page, at `maxPages`, or when the
+ * signal aborts — the cap flags the result as truncated so the UI can
+ * say "sample". The offset advances by rows FETCHED (not kept), so
+ * dedupe never refetches the same window.
  */
 export async function fetchAllPages<T>(
     fetchPage: (limit: number, offset: number) => Promise<AnalyticsPageResponse<T>>,
-    { pageLimit = ANALYTICS_PAGE_LIMIT, maxPages = ANALYTICS_MAX_PAGES }: { pageLimit?: number; maxPages?: number } = {},
+    { pageLimit = ANALYTICS_PAGE_LIMIT, maxPages = ANALYTICS_MAX_PAGES, signal, getId }: FetchAllOptions<T> = {},
 ): Promise<FetchAllResult<T>> {
     const items: T[] = [];
+    const seen = new Set<string>();
+    let fetched = 0;
     let total = 0;
 
     for (let page = 0; page < maxPages; page++) {
-        const res = await fetchPage(pageLimit, items.length);
-        if (!res.data) {
-            return { items, total, truncated: items.length < total, error: res.error ?? 'unknown error' };
+        if (signal?.aborted) {
+            return { items, total, truncated: fetched < total, aborted: true, error: null };
         }
 
-        items.push(...res.data.items);
+        const res = await fetchPage(pageLimit, fetched);
+        if (!res.data) {
+            return {
+                items, total,
+                truncated: fetched < total,
+                aborted: signal?.aborted ?? false,
+                error: res.error ?? 'unknown error',
+            };
+        }
+
+        fetched += res.data.items.length;
+        for (const item of res.data.items) {
+            if (getId) {
+                const id = getId(item);
+                if (seen.has(id)) continue;
+                seen.add(id);
+            }
+            items.push(item);
+        }
         total = res.data.total;
 
         // A short page also terminates: `total` may drift while paging.
-        if (items.length >= total || res.data.items.length < pageLimit) {
-            return { items, total, truncated: false, error: null };
+        if (fetched >= total || res.data.items.length < pageLimit) {
+            return { items, total, truncated: false, aborted: false, error: null };
         }
     }
 
-    return { items, total, truncated: items.length < total, error: null };
+    return { items, total, truncated: fetched < total, aborted: false, error: null };
 }
 
 // ─── Aggregations ────────────────────────────────────────────────────
@@ -331,6 +384,89 @@ export function aggregatePlanMetrics(metrics: AdminPlanMetric[], range: Analytic
 /** null when the denominator is not positive (renders as an em dash). */
 export function safeDiv(numerator: number, denominator: number): number | null {
     return denominator > 0 ? numerator / denominator : null;
+}
+
+// ─── Load orchestration ──────────────────────────────────────────────
+
+/** Minimal shape of `src/lib/api.ts#api`, injected for testability. */
+export type ApiCall = <T>(
+    path: string,
+    options?: { signal?: AbortSignal },
+) => Promise<{ data: T | null; error: string | null }>;
+
+export interface AnalyticsSnapshot {
+    chatStats: AdminChatTurnsStats | null;
+    chatAggregate: ChatTurnsAggregate;
+    planStats: AdminPlanMetricsStats | null;
+    planAggregate: PlanMetricsAggregate;
+    truncated: boolean;
+    aborted: boolean;
+    error: string | null;
+}
+
+/**
+ * One full load for a range: the two /stats endpoints plus the two
+ * paginated lists (deduped by id), all in parallel and all wired to the
+ * same AbortSignal so a superseded load stops paginating instead of
+ * burning the shared admin rate limit. Never rejects: any throw (e.g. a
+ * malformed timestamp exploding in the aggregation) becomes an error
+ * snapshot so the UI always leaves the loading state.
+ */
+export async function loadAnalytics(
+    apiCall: ApiCall,
+    days: RangeDays,
+    {
+        now = new Date(),
+        signal,
+        pageLimit = ANALYTICS_PAGE_LIMIT,
+        maxPages = ANALYTICS_MAX_PAGES,
+    }: { now?: Date; signal?: AbortSignal; pageLimit?: number; maxPages?: number } = {},
+): Promise<AnalyticsSnapshot> {
+    const range = rangeBounds(days, now);
+    try {
+        const [chatStatsRes, chatTurnsRes, planStatsRes, planMetricsRes] = await Promise.all([
+            apiCall<AdminChatTurnsStats>(buildChatTurnsStatsQuery(range), { signal }),
+            fetchAllPages<AdminChatTurn>(
+                async (limit, offset) => {
+                    const res = await apiCall<AdminChatTurnsListResponse>(
+                        buildChatTurnsQuery(range, limit, offset), { signal },
+                    );
+                    return { data: res.data ? { items: res.data.turns, total: res.data.total } : null, error: res.error };
+                },
+                { pageLimit, maxPages, signal, getId: (t) => t.id },
+            ),
+            apiCall<AdminPlanMetricsStats>(buildPlanMetricsStatsQuery(range), { signal }),
+            fetchAllPages<AdminPlanMetric>(
+                async (limit, offset) => {
+                    const res = await apiCall<AdminPlanMetricsListResponse>(
+                        buildPlanMetricsQuery(range, limit, offset), { signal },
+                    );
+                    return { data: res.data ? { items: res.data.metrics, total: res.data.total } : null, error: res.error };
+                },
+                { pageLimit, maxPages, signal, getId: (m) => m.id },
+            ),
+        ]);
+
+        return {
+            chatStats: chatStatsRes.data,
+            chatAggregate: aggregateChatTurns(chatTurnsRes.items, range),
+            planStats: planStatsRes.data,
+            planAggregate: aggregatePlanMetrics(planMetricsRes.items, range),
+            truncated: chatTurnsRes.truncated || planMetricsRes.truncated,
+            aborted: chatTurnsRes.aborted || planMetricsRes.aborted || (signal?.aborted ?? false),
+            error: chatStatsRes.error ?? chatTurnsRes.error ?? planStatsRes.error ?? planMetricsRes.error,
+        };
+    } catch (err) {
+        return {
+            chatStats: null,
+            chatAggregate: aggregateChatTurns([], range),
+            planStats: null,
+            planAggregate: aggregatePlanMetrics([], range),
+            truncated: false,
+            aborted: signal?.aborted ?? false,
+            error: err instanceof Error ? err.message : 'Unexpected error',
+        };
+    }
 }
 
 // ─── Display formatters ──────────────────────────────────────────────

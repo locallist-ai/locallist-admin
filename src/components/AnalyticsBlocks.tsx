@@ -11,17 +11,28 @@ import { RANGE_OPTIONS, type RangeDays } from '../lib/analyticsQueries';
  */
 
 /**
- * Series colors, assigned to sorted keys in fixed order (color follows
- * the entity, never its rank). Validated for CVD separation on the
- * white card surface; keys beyond the palette share the gray fallback —
- * every row also carries a text label + count, so color is never the
- * only identity channel.
+ * Series colors keyed by ENTITY, not by position: known generation
+ * sources have a fixed color (stable across range changes and across
+ * whatever subset the current range contains), and unknown keys hash
+ * deterministically into the palette — same key, same color, always.
+ * Two unknown keys may collide, but every legend item and row carries
+ * a text label + count, so color is never the only identity channel.
+ * Palette validated for CVD separation on the white card surface.
  */
 const SERIES_COLORS = [colors.electricBlue, colors.sunsetOrange, colors.successEmerald] as const;
-const SERIES_FALLBACK = colors.textSecondary;
 
-export function seriesColor(index: number): string {
-    return SERIES_COLORS[index] ?? SERIES_FALLBACK;
+/** Values written by the backend today (ChatController / BuilderController). */
+const KNOWN_SOURCE_COLORS: Record<string, string> = {
+    chat: colors.electricBlue,
+    builder: colors.sunsetOrange,
+};
+
+export function seriesColor(key: string): string {
+    const known = KNOWN_SOURCE_COLORS[key];
+    if (known) return known;
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+    return SERIES_COLORS[hash % SERIES_COLORS.length];
 }
 
 // ─── Range selector ──────────────────────────────────────────────────
@@ -142,7 +153,7 @@ export function StackedDayBars({
 }: {
     title: string;
     rows: StackedDayRow[];
-    /** Sorted keys — index defines the color, stable across ranges. */
+    /** Sorted keys (display order only — color comes from `seriesColor(key)`). */
     seriesKeys: string[];
     seriesTotals: Record<string, number>;
     emptyText: string;
@@ -153,9 +164,9 @@ export function StackedDayBars({
             <Text style={styles.chartTitle}>{title}</Text>
             {seriesKeys.length > 0 && (
                 <View style={styles.legendRow}>
-                    {seriesKeys.map((key, i) => (
+                    {seriesKeys.map((key) => (
                         <View key={key} style={styles.legendItem}>
-                            <View style={[styles.legendDot, { backgroundColor: seriesColor(i) }]} />
+                            <View style={[styles.legendDot, { backgroundColor: seriesColor(key) }]} />
                             <Text style={styles.legendText}>{key} · {seriesTotals[key] ?? 0}</Text>
                         </View>
                     ))}
@@ -168,7 +179,7 @@ export function StackedDayBars({
                     <View key={row.label} style={styles.barRow}>
                         <Text style={styles.barLabel} numberOfLines={1}>{row.label}</Text>
                         <View style={styles.barTrack}>
-                            {seriesKeys.map((key, i) => {
+                            {seriesKeys.map((key) => {
                                 const count = row.counts[key] ?? 0;
                                 if (count === 0) return null;
                                 return (
@@ -176,7 +187,7 @@ export function StackedDayBars({
                                         key={key}
                                         style={[
                                             styles.stackSegment,
-                                            { width: `${(count / max) * 100}%`, backgroundColor: seriesColor(i) },
+                                            { width: `${(count / max) * 100}%`, backgroundColor: seriesColor(key) },
                                         ]}
                                     />
                                 );

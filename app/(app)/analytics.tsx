@@ -18,6 +18,8 @@ import {
     type StatItem,
 } from '../../src/components/AnalyticsBlocks';
 import {
+    ANALYTICS_MAX_PAGES,
+    ANALYTICS_PAGE_LIMIT,
     formatDayLabel,
     formatMs,
     formatPct,
@@ -39,16 +41,20 @@ export default function AnalyticsScreen() {
         chatStats, chatAggregate, planStats, planAggregate, reload,
     } = useAnalyticsData();
 
+    // Single empty-state criterion: with no rows in the range, every tile
+    // derived from an empty count renders an em dash (the backend returns
+    // 0 there, which would read as a real measurement).
+    const hasTurns = (chatStats?.totalTurns ?? 0) > 0;
     const chatItems: StatItem[] = chatStats ? [
         { label: 'Turns', value: String(chatStats.totalTurns) },
-        { label: 'Cost (range)', value: formatUsd(chatStats.totalCostUsd) },
+        { label: 'Cost (range)', value: hasTurns ? formatUsd(chatStats.totalCostUsd) : '—' },
         {
             label: 'Latency p50',
             value: chatAggregate?.latencyP50 != null ? formatMs(chatAggregate.latencyP50) : '—',
             hint: chatAggregate?.latencyP95 != null ? `p95 ${formatMs(chatAggregate.latencyP95)}` : undefined,
         },
-        { label: 'Error rate', value: formatPct(chatStats.errorRate) },
-        { label: 'Slot completeness (avg)', value: chatStats.totalTurns > 0 ? chatStats.avgSlotCompleteness.toFixed(1) : '—' },
+        { label: 'Error rate', value: hasTurns ? formatPct(chatStats.errorRate) : '—' },
+        { label: 'Slot completeness (avg)', value: hasTurns ? chatStats.avgSlotCompleteness.toFixed(1) : '—' },
     ] : [];
 
     const avgCostPerPlan = planStats ? safeDiv(planStats.totalCostUsd, planStats.totalPlans) : null;
@@ -75,8 +81,9 @@ export default function AnalyticsScreen() {
 
                 {truncated && (
                     <Text style={styles.truncatedNote}>
-                        Large range: daily series, percentiles and mixes are computed on a sample
-                        (first 2000 rows); the summary cards remain exact.
+                        Large range: daily series, percentiles and mixes are computed on the
+                        {' '}{ANALYTICS_MAX_PAGES * ANALYTICS_PAGE_LIMIT} most recent rows of the
+                        range, so older days may be incomplete. Summary cards remain exact.
                     </Text>
                 )}
 

@@ -64,7 +64,7 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 - `src/lib/taxonomy.ts` — Static taxonomy: `CATEGORIES`, `SUBCATEGORIES_BY_CATEGORY`, Google types → subcategory mapping. Pickers prefer the live API taxonomy (`useTaxonomy`); the static list is inference + fallback only.
 - `src/lib/subcategories.ts` — Pure API calls for creating subcategories (single + batch with partial-failure reporting).
 - `src/lib/dashboardQueries.ts` — Pure query/pagination rules for the dashboard (filters, badges, refresh per mode). Tested.
-- `src/lib/analyticsQueries.ts` — Pure logic behind the Analytics screen: DTO types of `/admin/analytics/chat-turns[/stats]` and `/admin/analytics/plan-metrics[/stats]`, range bounds, query builders (limit clamp 200), page-accumulation loop with injected API + `truncated` flag, UTC day bucketing, nearest-rank percentiles, mixes and formatters. Tested.
+- `src/lib/analyticsQueries.ts` — Pure logic behind the Analytics screen: DTO types of `/admin/analytics/chat-turns[/stats]` and `/admin/analytics/plan-metrics[/stats]` (ojo: `WhenWritingNull` — los `| null` llegan como campo ausente), range bounds anclado a medianoche UTC (N días = N buckets), query builders (limit clamp 200), page-accumulation loop with injected API + AbortSignal + dedupe por id + `truncated` flag, UTC day bucketing, nearest-rank percentiles, mixes, formatters, and `loadAnalytics` (full-range orchestration with injected API; never rejects — throws become error snapshots). Tested.
 - `src/lib/optimisticList.ts` — Pure list/count ops behind optimistic updates with rollback. Tested.
 - `src/lib/batchTranslate.ts` — Chunked batch-translate loop with injected API call. Tested.
 - `src/lib/planForm.ts` — Pure logic behind `usePlanForm`: plan→form/stops mapping, metadata diff, stop ops (add with per-day cap, remove/move + reindex), and `savePlan` (single atomic `PATCH /admin/plans/{id}` carrying metadata + full stop list, error path) with injected API. Tested.
@@ -77,7 +77,7 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 - `src/hooks/useBreakpoint.ts` — Responsive breakpoint hook (isDesktop).
 - `src/hooks/useTaxonomy.ts` — Hook for loading taxonomy data.
 - `src/hooks/useFilterState.ts` — Dashboard filters: city, category, debounced name search.
-- `src/hooks/useAnalyticsData.ts` — Analytics data per range: the two `/stats` endpoints (exact scalars) + the two paginated lists accumulated for distributions, in parallel, race-guarded. React wiring over `src/lib/analyticsQueries.ts`.
+- `src/hooks/useAnalyticsData.ts` — Thin React wiring over `loadAnalytics`: one AbortController per load (range toggle/retry/unmount aborta la carga anterior para no quemar el rate limit admin compartido) + monotonic request-id guard.
 - `src/hooks/usePlacesData.ts` — Places list + pagination + badge counts + optimistic mutations with rollback.
 - `src/hooks/usePlansData.ts` — Plans list + pagination + unpublish/delete. Race-guarded with a monotonic request id (parity with `usePlacesData`).
 - `src/hooks/usePlanForm.ts` — Plan edit screen state (load, form, stops, ES translate, save, delete). React wiring over `src/lib/planForm.ts`.

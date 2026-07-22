@@ -22,23 +22,33 @@ import {
     formatPct,
     formatUsd,
     listDaysUtc,
+    loadAnalytics,
     percentile,
     rangeBounds,
     safeDiv,
     type AdminChatTurn,
     type AdminPlanMetric,
     type AnalyticsPage,
+    type ApiCall,
 } from '../lib/analyticsQueries';
 
 const NOW = new Date('2026-07-22T10:00:00.000Z');
 
-describe('rangeBounds', () => {
-    it('resta exactamente 7 o 30 días respecto a `now`', () => {
+describe('rangeBounds (anclado a medianoche UTC)', () => {
+    it('from = 00:00Z de hace N-1 días; to = now', () => {
         expect(rangeBounds(7, NOW)).toEqual({
-            from: '2026-07-15T10:00:00.000Z',
+            from: '2026-07-16T00:00:00.000Z',
             to: '2026-07-22T10:00:00.000Z',
         });
-        expect(rangeBounds(30, NOW).from).toBe('2026-06-22T10:00:00.000Z');
+        expect(rangeBounds(30, NOW).from).toBe('2026-06-23T00:00:00.000Z');
+    });
+
+    it('un rango de N días produce exactamente N buckets diarios y solo el último ("hoy") es parcial', () => {
+        const days7 = listDaysUtc(rangeBounds(7, NOW));
+        expect(days7).toHaveLength(7);
+        expect(days7[0]).toBe('2026-07-16');
+        expect(days7[6]).toBe('2026-07-22');
+        expect(listDaysUtc(rangeBounds(30, NOW))).toHaveLength(30);
     });
 });
 
@@ -48,13 +58,13 @@ describe('query builders (endpoints /admin/analytics/*)', () => {
     it('lista de chat turns: paginación + rango, ISO escapado por URLSearchParams', () => {
         const url = buildChatTurnsQuery(range, 200, 400);
         expect(url).toBe(
-            '/admin/analytics/chat-turns?from=2026-07-15T10%3A00%3A00.000Z&to=2026-07-22T10%3A00%3A00.000Z&limit=200&offset=400',
+            '/admin/analytics/chat-turns?from=2026-07-16T00%3A00%3A00.000Z&to=2026-07-22T10%3A00%3A00.000Z&limit=200&offset=400',
         );
     });
 
     it('stats de chat turns: solo from/to', () => {
         expect(buildChatTurnsStatsQuery(range)).toBe(
-            '/admin/analytics/chat-turns/stats?from=2026-07-15T10%3A00%3A00.000Z&to=2026-07-22T10%3A00%3A00.000Z',
+            '/admin/analytics/chat-turns/stats?from=2026-07-16T00%3A00%3A00.000Z&to=2026-07-22T10%3A00%3A00.000Z',
         );
     });
 
@@ -80,7 +90,7 @@ describe('fetchAllPages', () => {
             return { data: page([1, 2, 3], 3), error: null };
         }, { pageLimit: 5 });
 
-        expect(res).toEqual({ items: [1, 2, 3], total: 3, truncated: false, error: null });
+        expect(res).toEqual({ items: [1, 2, 3], total: 3, truncated: false, aborted: false, error: null });
         expect(calls).toEqual([[5, 0]]);
     });
 
@@ -131,7 +141,48 @@ describe('fetchAllPages', () => {
 
     it('rango vacío: total 0, sin truncar', async () => {
         const res = await fetchAllPages<number>(async () => ({ data: page([], 0), error: null }));
-        expect(res).toEqual({ items: [], total: 0, truncated: false, error: null });
+        expect(res).toEqual({ items: [], total: 0, truncated: false, aborted: false, error: null });
+    });
+
+    it('MAJOR-1: la señal abortada corta el loop entre páginas (ni un request más)', async () => {
+        const controller = new AbortController();
+        let calls = 0;
+        const res = await fetchAllPages<number>(
+            async (_limit, offset) => {
+                calls++;
+                // Simula el abort disparado mientras la primera página está en vuelo.
+                controller.abort();
+                return { data: page([offset], 100), error: null };
+            },
+            { pageLimit: 1, maxPages: 10, signal: controller.signal },
+        );
+
+        expect(calls).toBe(1);
+        expect(res.aborted).toBe(true);
+        expect(res.error).toBeNull();
+        expect(res.truncated).toBe(true);
+    });
+
+    it('MINOR-3: dedupe por id en frontera de página, con offset avanzando por filas descargadas', async () => {
+        const row = (id: string) => ({ id });
+        const pages: { id: string }[][] = [
+            [row('a'), row('b')],
+            [row('b'), row('c')], // 'b' repetida: empate de CreatedAt en la frontera
+        ];
+        const offsets: number[] = [];
+        const res = await fetchAllPages<{ id: string }>(
+            async (_limit, offset) => {
+                offsets.push(offset);
+                return { data: { items: pages[offsets.length - 1], total: 4 }, error: null };
+            },
+            { pageLimit: 2, getId: (r) => r.id },
+        );
+
+        expect(res.items.map((r) => r.id)).toEqual(['a', 'b', 'c']);
+        // El offset avanza por lo DESCARGADO (2, no 3 filas únicas): no se
+        // repite la misma ventana del servidor.
+        expect(offsets).toEqual([0, 2]);
+        expect(res.truncated).toBe(false);
     });
 });
 
@@ -261,6 +312,87 @@ describe('agregados de bloque', () => {
         expect(agg.sources).toEqual(['chat', 'wizard']);
         expect(agg.sourceMix[0]).toEqual({ key: 'chat', count: 2, share: 2 / 3 });
         expect(agg.plansPerDayBySource[0].counts).toEqual({ chat: 2, wizard: 1 });
+    });
+});
+
+describe('loadAnalytics (orquestación con api inyectada)', () => {
+    const chatTurn = (over: Partial<AdminChatTurn>): AdminChatTurn => ({
+        id: 't1', createdAt: '2026-07-21T08:00:00Z', latencyMs: 500,
+        aiProvider: 'gemini', model: 'gemini-3.1-flash-lite',
+        ...over,
+    } as AdminChatTurn);
+
+    const planMetric: AdminPlanMetric = {
+        id: 'm1', createdAt: '2026-07-21T09:00:00Z', generationSource: 'chat',
+    } as AdminPlanMetric;
+
+    const makeApi = (over?: { chatTurns?: Partial<AdminChatTurn>[] }): { api: ApiCall; seenSignals: (AbortSignal | undefined)[]; paths: string[] } => {
+        const seenSignals: (AbortSignal | undefined)[] = [];
+        const paths: string[] = [];
+        const turns = (over?.chatTurns ?? [{}]).map(chatTurn);
+        const api: ApiCall = async <T,>(path: string, options?: { signal?: AbortSignal }) => {
+            seenSignals.push(options?.signal);
+            paths.push(path);
+            if (path.startsWith('/admin/analytics/chat-turns/stats')) {
+                return { data: { totalTurns: turns.length, totalCostUsd: 0.01, errorRate: 0, avgSlotCompleteness: 2 } as unknown as T, error: null };
+            }
+            if (path.startsWith('/admin/analytics/chat-turns')) {
+                return { data: { turns, total: turns.length, limit: 200, offset: 0 } as unknown as T, error: null };
+            }
+            if (path.startsWith('/admin/analytics/plan-metrics/stats')) {
+                return { data: { totalPlans: 1, openRate: 1, followRate: 0, totalCostUsd: 0.001 } as unknown as T, error: null };
+            }
+            return { data: { metrics: [planMetric], total: 1, limit: 200, offset: 0 } as unknown as T, error: null };
+        };
+        return { api, seenSignals, paths };
+    };
+
+    it('MAJOR-1: propaga la MISMA señal a las 4 llamadas (stats + listas)', async () => {
+        const controller = new AbortController();
+        const { api, seenSignals, paths } = makeApi();
+
+        const snapshot = await loadAnalytics(api, 7, { now: NOW, signal: controller.signal });
+
+        expect(paths).toHaveLength(4);
+        expect(seenSignals.every((s) => s === controller.signal)).toBe(true);
+        expect(snapshot.error).toBeNull();
+        expect(snapshot.aborted).toBe(false);
+    });
+
+    it('snapshot feliz: stats + agregados coherentes con el rango', async () => {
+        const { api } = makeApi();
+        const snapshot = await loadAnalytics(api, 7, { now: NOW });
+
+        expect(snapshot.chatStats?.totalTurns).toBe(1);
+        expect(snapshot.chatAggregate.turnsPerDay).toHaveLength(7);
+        expect(snapshot.planAggregate.sources).toEqual(['chat']);
+        expect(snapshot.truncated).toBe(false);
+    });
+
+    it('MINOR-4: un throw en la agregación (ISO inválido) resuelve en snapshot de error, nunca rechaza', async () => {
+        const { api } = makeApi({ chatTurns: [{ createdAt: 'not-a-date' }] });
+
+        const snapshot = await loadAnalytics(api, 7, { now: NOW });
+
+        expect(snapshot.error).toBeTruthy();
+        expect(snapshot.chatStats).toBeNull();
+        expect(snapshot.chatAggregate.turnsPerDay.every((b) => b.total === 0)).toBe(true);
+    });
+
+    it('el error de un endpoint aflora en el snapshot sin tumbar el resto', async () => {
+        const base = makeApi();
+        const api: ApiCall = async <T,>(path: string, options?: { signal?: AbortSignal }) => {
+            if (path.startsWith('/admin/analytics/plan-metrics/stats')) {
+                return { data: null, error: 'HTTP 500' };
+            }
+            return base.api<T>(path, options);
+        };
+
+        const snapshot = await loadAnalytics(api, 7, { now: NOW });
+
+        expect(snapshot.error).toBe('HTTP 500');
+        expect(snapshot.planStats).toBeNull();
+        expect(snapshot.chatStats?.totalTurns).toBe(1);
     });
 });
 
