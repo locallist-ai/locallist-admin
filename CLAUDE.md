@@ -36,6 +36,7 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 ## Key Files
 
 - `app/(app)/index.tsx` — Main dashboard (~300 lines of composition). Mode toggle (places / plans) + batch-translate overlay; data lives in `usePlacesData` / `usePlansData` / `useFilterState`, UI in `DashboardHeader`, `FilterBar`, `StatusTabs`, `BatchActionsRow`, `PlacesList`, `PlansList`. Swipe UI only for `in_review` places.
+- `app/(app)/analytics.tsx` — Product analytics screen (fase 1): Chat block (`chat_turns`: turns/day, cost, latency p50/p95, provider·model mix, slot completeness) + Plans block (`plan_metrics`: plans/day by source, avg cost, % opened/followed), shared 7/30-day range. Composition only; data in `useAnalyticsData`, logic in `src/lib/analyticsQueries.ts`. Extension point marcado para el bloque de monetización (fase 2, aplazada).
 - `app/(app)/place/[id].tsx` — Place detail/edit screen (thin composition). Logic lives in `usePlaceForm`; AI description suggestion (`POST /admin/places/{id}/suggest-description`).
 - `app/(app)/place/create.tsx` — Place creation form.
 - `app/(app)/places/import-batch.tsx` — CSV batch import.
@@ -45,7 +46,8 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 - `app/(app)/plans/create.tsx` — Plan creation form.
 - `app/(auth)/login.tsx` — Google Sign-In: Firebase popup on web, native SDK on mobile. Domain locked to `@locallist.ai`.
 - `src/components/SwipeCard.tsx` — Gesture-handled card for approving/rejecting places.
-- `src/components/DashboardHeader.tsx` — Logo + refresh / create / logout row (presentational; the "+ Create" menu per mode lives in `index.tsx` via `onCreatePress`).
+- `src/components/DashboardHeader.tsx` — Logo + analytics / refresh / create / logout row (presentational; the "+ Create" menu per mode and the Analytics navigation live in `index.tsx` via `onCreatePress` / `onAnalyticsPress`).
+- `src/components/AnalyticsBlocks.tsx` — Presentational pieces of the Analytics screen: range chips, section cards, stat tiles, single-hue `BarList` and per-source `StackedDayBars` (fixed series-color order, no chart libs).
 - `src/components/FilterBar.tsx` — Name search + city chips; exports `FilterChipRow` (reused for the category filter).
 - `src/components/StatusTabs.tsx` — Queue / Published / Rejected tabs with count badges.
 - `src/components/BatchActionsRow.tsx` — Translate / Reindex / Hours actions for published places.
@@ -62,6 +64,7 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 - `src/lib/taxonomy.ts` — Static taxonomy: `CATEGORIES`, `SUBCATEGORIES_BY_CATEGORY`, Google types → subcategory mapping. Pickers prefer the live API taxonomy (`useTaxonomy`); the static list is inference + fallback only.
 - `src/lib/subcategories.ts` — Pure API calls for creating subcategories (single + batch with partial-failure reporting).
 - `src/lib/dashboardQueries.ts` — Pure query/pagination rules for the dashboard (filters, badges, refresh per mode). Tested.
+- `src/lib/analyticsQueries.ts` — Pure logic behind the Analytics screen: DTO types of `/admin/analytics/chat-turns[/stats]` and `/admin/analytics/plan-metrics[/stats]` (ojo: `WhenWritingNull` — los `| null` llegan como campo ausente), range bounds anclado a medianoche UTC (N días = N buckets), query builders (limit clamp 200), page-accumulation loop with injected API + AbortSignal + dedupe por id + `truncated` flag, UTC day bucketing, nearest-rank percentiles, mixes, formatters, and `loadAnalytics` (full-range orchestration with injected API; never rejects — throws become error snapshots). Tested.
 - `src/lib/optimisticList.ts` — Pure list/count ops behind optimistic updates with rollback. Tested.
 - `src/lib/batchTranslate.ts` — Chunked batch-translate loop with injected API call. Tested.
 - `src/lib/planForm.ts` — Pure logic behind `usePlanForm`: plan→form/stops mapping, metadata diff, stop ops (add with per-day cap, remove/move + reindex), and `savePlan` (single atomic `PATCH /admin/plans/{id}` carrying metadata + full stop list, error path) with injected API. Tested.
@@ -74,6 +77,7 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 - `src/hooks/useBreakpoint.ts` — Responsive breakpoint hook (isDesktop).
 - `src/hooks/useTaxonomy.ts` — Hook for loading taxonomy data.
 - `src/hooks/useFilterState.ts` — Dashboard filters: city, category, debounced name search.
+- `src/hooks/useAnalyticsData.ts` — Thin React wiring over `loadAnalytics`: one AbortController per load (range toggle/retry/unmount aborta la carga anterior para no quemar el rate limit admin compartido) + monotonic request-id guard.
 - `src/hooks/usePlacesData.ts` — Places list + pagination + badge counts + optimistic mutations with rollback.
 - `src/hooks/usePlansData.ts` — Plans list + pagination + unpublish/delete. Race-guarded with a monotonic request id (parity with `usePlacesData`).
 - `src/hooks/usePlanForm.ts` — Plan edit screen state (load, form, stops, ES translate, save, delete). React wiring over `src/lib/planForm.ts`.

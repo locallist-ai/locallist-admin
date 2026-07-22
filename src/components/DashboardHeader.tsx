@@ -15,10 +15,12 @@ interface DashboardHeaderProps {
     isDesktop: boolean;
     onRefresh: () => void;
     onCreatePress: () => void;
+    /** Navigation lives in the screen (parity with onCreatePress). */
+    onAnalyticsPress: () => void;
 }
 
-/** Logo + refresh / create / logout row. The "+ Create" menu lives in the screen. */
-export default function DashboardHeader({ refreshing, isDesktop, onRefresh, onCreatePress }: DashboardHeaderProps) {
+/** Logo + analytics / refresh / create / logout row. The "+ Create" menu lives in the screen. */
+export default function DashboardHeader({ refreshing, isDesktop, onRefresh, onCreatePress, onAnalyticsPress }: DashboardHeaderProps) {
     const { signOut } = useAuth();
 
     return (
@@ -29,6 +31,9 @@ export default function DashboardHeader({ refreshing, isDesktop, onRefresh, onCr
                 resizeMode="contain"
             />
             <View style={styles.headerRight}>
+                <Pressable style={styles.analyticsBtn} onPress={onAnalyticsPress}>
+                    <Text style={styles.analyticsBtnText}>Analytics</Text>
+                </Pressable>
                 <Pressable
                     style={[styles.refreshBtn, refreshing && { opacity: 0.5 }]}
                     onPress={onRefresh}
@@ -63,6 +68,11 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.sm, borderRadius: borderRadius.sm,
     },
     createBtnText: { color: '#fff', fontFamily: fonts.bodySemiBold, fontSize: 14 },
+    analyticsBtn: {
+        paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+        borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.electricBlue,
+    },
+    analyticsBtnText: { color: colors.electricBlue, fontFamily: fonts.bodySemiBold, fontSize: 14 },
     refreshBtn: {
         padding: spacing.sm, borderRadius: borderRadius.sm,
         borderWidth: 1, borderColor: colors.electricBlue,
