@@ -81,9 +81,10 @@ export default function AnalyticsScreen() {
 
                 {truncated && (
                     <Text style={styles.truncatedNote}>
-                        Large range: the series, percentiles and mixes are computed on the
-                        {' '}{ANALYTICS_MAX_PAGES * ANALYTICS_PAGE_LIMIT} most recent rows of the
-                        range, so earlier periods may be incomplete. Summary cards remain exact.
+                        Large range: summary cards remain exact, but the series, percentiles and
+                        mixes use the{' '}{ANALYTICS_MAX_PAGES * ANALYTICS_PAGE_LIMIT} most recent
+                        rows — for All-time and very large ranges the chart starts at the oldest of
+                        those rows, so older history may be missing entirely.
                     </Text>
                 )}
 
