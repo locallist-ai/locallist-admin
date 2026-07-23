@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { shouldApplyResponse } from '../lib/raceGuard';
-import { loadAnalytics, type AnalyticsSnapshot, type RangeDays } from '../lib/analyticsQueries';
+import { granularityForRange, loadAnalytics, type AnalyticsSnapshot, type RangeKey } from '../lib/analyticsQueries';
 
 /**
  * Data side of the Analytics screen: thin React wiring over
@@ -19,14 +19,14 @@ import { loadAnalytics, type AnalyticsSnapshot, type RangeDays } from '../lib/an
  * surface a third block alongside chat/plans.
  */
 export function useAnalyticsData() {
-    const [rangeDays, setRangeDays] = useState<RangeDays>(7);
+    const [rangeKey, setRangeKey] = useState<RangeKey>('7d');
     const [loading, setLoading] = useState(true);
     const [snapshot, setSnapshot] = useState<AnalyticsSnapshot | null>(null);
 
     const requestIdRef = useRef(0);
     const abortRef = useRef<AbortController | null>(null);
 
-    const load = useCallback(async (days: RangeDays) => {
+    const load = useCallback(async (key: RangeKey) => {
         abortRef.current?.abort();
         const controller = new AbortController();
         abortRef.current = controller;
@@ -37,7 +37,7 @@ export function useAnalyticsData() {
         // linger under the new range's spinner.
         setSnapshot(null);
 
-        const result = await loadAnalytics(api, days, { signal: controller.signal });
+        const result = await loadAnalytics(api, key, { signal: controller.signal });
 
         if (!shouldApplyResponse(reqId, requestIdRef.current)) return;
 
@@ -46,15 +46,17 @@ export function useAnalyticsData() {
     }, []);
 
     useEffect(() => {
-        load(rangeDays);
-    }, [rangeDays, load]);
+        load(rangeKey);
+    }, [rangeKey, load]);
 
     // Unmounting aborts whatever is still paginating.
     useEffect(() => () => abortRef.current?.abort(), []);
 
     return {
-        rangeDays,
-        setRangeDays,
+        rangeKey,
+        setRangeKey,
+        // Series granularity of the current range — drives axis labels.
+        granularity: granularityForRange(rangeKey),
         loading,
         error: snapshot?.error ?? null,
         truncated: snapshot?.truncated ?? false,
@@ -62,6 +64,6 @@ export function useAnalyticsData() {
         chatAggregate: snapshot?.chatAggregate ?? null,
         planStats: snapshot?.planStats ?? null,
         planAggregate: snapshot?.planAggregate ?? null,
-        reload: () => load(rangeDays),
+        reload: () => load(rangeKey),
     };
 }

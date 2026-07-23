@@ -121,29 +121,69 @@ export interface AdminPlanMetricsStats {
 
 // ─── Range ───────────────────────────────────────────────────────────
 
-export type RangeDays = 7 | 30;
+/** Preset ranges offered by the chips. `all` has no lower bound. */
+export type RangeKey = '7d' | '30d' | '90d' | '1y' | 'all';
 
-export const RANGE_OPTIONS: { days: RangeDays; label: string }[] = [
-    { days: 7, label: '7 days' },
-    { days: 30, label: '30 days' },
+/**
+ * Time granularity of the per-period series for a range: short ranges
+ * stay daily, a quarter rolls up to weeks, a year and all-time to
+ * calendar months. Keeps the bar count readable across every preset.
+ */
+export type Granularity = 'day' | 'week' | 'month';
+
+export interface RangeOption {
+    key: RangeKey;
+    label: string;
+    /** Window length in days; `null` for all-time (no lower bound). */
+    days: number | null;
+    granularity: Granularity;
+}
+
+export const RANGE_OPTIONS: RangeOption[] = [
+    // Compact labels keep all five chips on one row on a phone.
+    { key: '7d', label: '7d', days: 7, granularity: 'day' },
+    { key: '30d', label: '30d', days: 30, granularity: 'day' },
+    { key: '90d', label: '90d', days: 90, granularity: 'week' },
+    { key: '1y', label: '1y', days: 365, granularity: 'month' },
+    { key: 'all', label: 'All', days: null, granularity: 'month' },
 ];
 
+const RANGE_OPTION_BY_KEY: Record<RangeKey, RangeOption> = Object.fromEntries(
+    RANGE_OPTIONS.map((o) => [o.key, o]),
+) as Record<RangeKey, RangeOption>;
+
+export function granularityForRange(key: RangeKey): Granularity {
+    return RANGE_OPTION_BY_KEY[key].granularity;
+}
+
 export interface AnalyticsRange {
-    /** ISO timestamp, inclusive lower bound. */
-    from: string;
+    /**
+     * ISO timestamp, inclusive lower bound. `null` for all-time: the
+     * query then omits `from` and the series start is derived from the
+     * oldest row in the downloaded sample.
+     */
+    from: string | null;
     /** ISO timestamp, inclusive upper bound. */
     to: string;
 }
 
+const DAY_MS = 86_400_000;
+
 /**
- * Anchored to UTC midnight so a range of N days yields exactly N daily
- * buckets: `from` is 00:00Z of (today − N−1 days) and `to` is `now`.
- * Only the last bucket ("today") is partial.
+ * Bounds for a preset. Finite windows anchor `from` to UTC midnight so a
+ * range of N days yields exactly N daily buckets — 00:00Z of
+ * (today − N−1 days) — and only the last bucket ("today") is partial.
+ * All-time yields `from: null` (no lower bound); its series start comes
+ * from the sample, not from here.
  */
-export function rangeBounds(days: RangeDays, now: Date = new Date()): AnalyticsRange {
+export function rangeForKey(key: RangeKey, now: Date = new Date()): AnalyticsRange {
+    const { days } = RANGE_OPTION_BY_KEY[key];
+    if (days == null) {
+        return { from: null, to: now.toISOString() };
+    }
     const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
     return {
-        from: new Date(todayUtc - (days - 1) * 86_400_000).toISOString(),
+        from: new Date(todayUtc - (days - 1) * DAY_MS).toISOString(),
         to: now.toISOString(),
     };
 }
@@ -157,7 +197,9 @@ export const ANALYTICS_MAX_PAGES = 10;
 
 function rangeParams(range: AnalyticsRange): URLSearchParams {
     const params = new URLSearchParams();
-    params.set('from', range.from);
+    // All-time: omit `from` entirely — the backend reads a missing lower
+    // bound as "since the beginning" (`from`/`to` are optional there).
+    if (range.from != null) params.set('from', range.from);
     params.set('to', range.to);
     return params;
 }
@@ -286,39 +328,104 @@ export function dayKeyUtc(iso: string): string {
     return new Date(iso).toISOString().slice(0, 10);
 }
 
-/** Every UTC day covered by the range, in order (inclusive both ends). */
-export function listDaysUtc(range: AnalyticsRange): string[] {
-    const days: string[] = [];
-    const start = Date.parse(`${dayKeyUtc(range.from)}T00:00:00Z`);
-    const end = Date.parse(`${dayKeyUtc(range.to)}T00:00:00Z`);
-    for (let t = start; t <= end; t += 86_400_000) {
-        days.push(new Date(t).toISOString().slice(0, 10));
-    }
-    return days;
+/** Midnight-UTC epoch ms of the calendar day an ISO timestamp falls on. */
+function dayStartMs(iso: string): number {
+    return Date.parse(`${dayKeyUtc(iso)}T00:00:00Z`);
 }
 
-export interface DayBucket {
-    day: string;
+/** 'YYYY-MM-DD' of a midnight-UTC epoch ms. */
+function isoDay(ms: number): string {
+    return new Date(ms).toISOString().slice(0, 10);
+}
+
+/**
+ * Bucket key an ISO timestamp maps to under a granularity.
+ *  - day:   its UTC day  ('2026-07-22').
+ *  - week:  the START day of the 7-day block it belongs to. Blocks are
+ *           ANCHORED to the END of the range (not ISO Monday weeks) so
+ *           the most recent block always closes exactly on `to`; that
+ *           keeps "the last bar is today's partial week" true for every
+ *           range, at the cost of week edges not landing on weekdays.
+ *  - month: its UTC calendar month ('2026-07').
+ * `anchorDayMs` (midnight UTC of `to`) is only read for the week case.
+ */
+function periodKey(dayMs: number, granularity: Granularity, anchorDayMs: number): string {
+    if (granularity === 'month') return isoDay(dayMs).slice(0, 7);
+    if (granularity === 'week') {
+        const blocksBack = Math.floor((anchorDayMs - dayMs) / (7 * DAY_MS));
+        return isoDay(anchorDayMs - blocksBack * 7 * DAY_MS - 6 * DAY_MS);
+    }
+    return isoDay(dayMs);
+}
+
+/**
+ * The effective series start (midnight-UTC ms): the range's lower bound
+ * when finite, otherwise — for all-time — the OLDEST row in the sample.
+ * That mirrors the truncation semantics: a capped sample holds the most
+ * RECENT rows, so anchoring all-time to the sample's oldest row keeps
+ * the series to the span we actually have data for. Null when all-time
+ * has no rows at all (empty series).
+ */
+function seriesStartMs<T>(range: AnalyticsRange, items: T[], getIso: (item: T) => string): number | null {
+    if (range.from != null) return dayStartMs(range.from);
+    if (items.length === 0) return null;
+    let min = Infinity;
+    for (const item of items) min = Math.min(min, dayStartMs(getIso(item)));
+    return min === Infinity ? null : min;
+}
+
+/** Ordered, gap-free list of bucket keys spanning [startMs, endMs]. */
+function listPeriodKeys(startMs: number, endMs: number, granularity: Granularity, anchorDayMs: number): string[] {
+    const keys: string[] = [];
+    if (granularity === 'month') {
+        let y = new Date(startMs).getUTCFullYear();
+        let m = new Date(startMs).getUTCMonth();
+        const endY = new Date(endMs).getUTCFullYear();
+        const endM = new Date(endMs).getUTCMonth();
+        while (y < endY || (y === endY && m <= endM)) {
+            keys.push(`${y}-${String(m + 1).padStart(2, '0')}`);
+            if (++m > 11) { m = 0; y++; }
+        }
+        return keys;
+    }
+    const step = granularity === 'week' ? 7 * DAY_MS : DAY_MS;
+    // Snap the ends onto block starts so iteration lands on real keys.
+    const first = Date.parse(`${periodKey(startMs, granularity, anchorDayMs)}T00:00:00Z`);
+    const last = Date.parse(`${periodKey(endMs, granularity, anchorDayMs)}T00:00:00Z`);
+    for (let t = first; t <= last; t += step) keys.push(periodKey(t, granularity, anchorDayMs));
+    return keys;
+}
+
+export interface PeriodBucket {
+    /** Bucket key: UTC day, week-start day, or 'YYYY-MM' month. */
+    key: string;
     total: number;
     /** Per-series counts when a series key extractor is given. */
     counts: Record<string, number>;
 }
 
 /**
- * Buckets items into the range's UTC days (zero-filled, ordered),
- * optionally split per series key. Items outside the range are dropped.
+ * Buckets items into the range's periods at the given granularity
+ * (zero-filled, ordered), optionally split per series key. Items outside
+ * the covered span are dropped. For all-time the span starts at the
+ * sample's oldest row (see `seriesStartMs`); an empty all-time sample
+ * yields an empty series.
  */
-export function bucketByDay<T>(
+export function bucketByPeriod<T>(
     items: T[],
     range: AnalyticsRange,
+    granularity: Granularity,
     getIso: (item: T) => string,
     getKey?: (item: T) => string,
-): DayBucket[] {
-    const buckets = new Map<string, DayBucket>(
-        listDaysUtc(range).map((day) => [day, { day, total: 0, counts: {} }]),
+): PeriodBucket[] {
+    const anchorDayMs = dayStartMs(range.to);
+    const startMs = seriesStartMs(range, items, getIso);
+    const keys = startMs == null ? [] : listPeriodKeys(startMs, anchorDayMs, granularity, anchorDayMs);
+    const buckets = new Map<string, PeriodBucket>(
+        keys.map((key) => [key, { key, total: 0, counts: {} }]),
     );
     for (const item of items) {
-        const bucket = buckets.get(dayKeyUtc(getIso(item)));
+        const bucket = buckets.get(periodKey(dayStartMs(getIso(item)), granularity, anchorDayMs));
         if (!bucket) continue;
         bucket.total++;
         if (getKey) {
@@ -349,17 +456,22 @@ export function countByKey<T>(items: T[], getKey: (item: T) => string): MixEntry
 }
 
 export interface ChatTurnsAggregate {
-    turnsPerDay: DayBucket[];
+    /** Per-period series (daily/weekly/monthly per the range granularity). */
+    turnsPerPeriod: PeriodBucket[];
     latencyP50: number | null;
     latencyP95: number | null;
     /** Key format: `${aiProvider} · ${model}`. */
     providerModelMix: MixEntry[];
 }
 
-export function aggregateChatTurns(turns: AdminChatTurn[], range: AnalyticsRange): ChatTurnsAggregate {
+export function aggregateChatTurns(
+    turns: AdminChatTurn[],
+    range: AnalyticsRange,
+    granularity: Granularity,
+): ChatTurnsAggregate {
     const latencies = turns.map((t) => t.latencyMs);
     return {
-        turnsPerDay: bucketByDay(turns, range, (t) => t.createdAt),
+        turnsPerPeriod: bucketByPeriod(turns, range, granularity, (t) => t.createdAt),
         latencyP50: percentile(latencies, 50),
         latencyP95: percentile(latencies, 95),
         providerModelMix: countByKey(turns, (t) => `${t.aiProvider} · ${t.model}`),
@@ -367,15 +479,20 @@ export function aggregateChatTurns(turns: AdminChatTurn[], range: AnalyticsRange
 }
 
 export interface PlanMetricsAggregate {
-    plansPerDayBySource: DayBucket[];
+    /** Per-period series split by generation source. */
+    plansPerPeriodBySource: PeriodBucket[];
     sourceMix: MixEntry[];
     /** Distinct generation sources, alphabetical — stable series/color order. */
     sources: string[];
 }
 
-export function aggregatePlanMetrics(metrics: AdminPlanMetric[], range: AnalyticsRange): PlanMetricsAggregate {
+export function aggregatePlanMetrics(
+    metrics: AdminPlanMetric[],
+    range: AnalyticsRange,
+    granularity: Granularity,
+): PlanMetricsAggregate {
     return {
-        plansPerDayBySource: bucketByDay(metrics, range, (m) => m.createdAt, (m) => m.generationSource),
+        plansPerPeriodBySource: bucketByPeriod(metrics, range, granularity, (m) => m.createdAt, (m) => m.generationSource),
         sourceMix: countByKey(metrics, (m) => m.generationSource),
         sources: [...new Set(metrics.map((m) => m.generationSource))].sort(),
     };
@@ -414,7 +531,7 @@ export interface AnalyticsSnapshot {
  */
 export async function loadAnalytics(
     apiCall: ApiCall,
-    days: RangeDays,
+    rangeKey: RangeKey,
     {
         now = new Date(),
         signal,
@@ -422,7 +539,8 @@ export async function loadAnalytics(
         maxPages = ANALYTICS_MAX_PAGES,
     }: { now?: Date; signal?: AbortSignal; pageLimit?: number; maxPages?: number } = {},
 ): Promise<AnalyticsSnapshot> {
-    const range = rangeBounds(days, now);
+    const range = rangeForKey(rangeKey, now);
+    const granularity = granularityForRange(rangeKey);
     try {
         const [chatStatsRes, chatTurnsRes, planStatsRes, planMetricsRes] = await Promise.all([
             apiCall<AdminChatTurnsStats>(buildChatTurnsStatsQuery(range), { signal }),
@@ -449,9 +567,9 @@ export async function loadAnalytics(
 
         return {
             chatStats: chatStatsRes.data,
-            chatAggregate: aggregateChatTurns(chatTurnsRes.items, range),
+            chatAggregate: aggregateChatTurns(chatTurnsRes.items, range, granularity),
             planStats: planStatsRes.data,
-            planAggregate: aggregatePlanMetrics(planMetricsRes.items, range),
+            planAggregate: aggregatePlanMetrics(planMetricsRes.items, range, granularity),
             truncated: chatTurnsRes.truncated || planMetricsRes.truncated,
             aborted: chatTurnsRes.aborted || planMetricsRes.aborted || (signal?.aborted ?? false),
             error: chatStatsRes.error ?? chatTurnsRes.error ?? planStatsRes.error ?? planMetricsRes.error,
@@ -459,9 +577,9 @@ export async function loadAnalytics(
     } catch (err) {
         return {
             chatStats: null,
-            chatAggregate: aggregateChatTurns([], range),
+            chatAggregate: aggregateChatTurns([], range, granularity),
             planStats: null,
-            planAggregate: aggregatePlanMetrics([], range),
+            planAggregate: aggregatePlanMetrics([], range, granularity),
             truncated: false,
             aborted: signal?.aborted ?? false,
             error: err instanceof Error ? err.message : 'Unexpected error',
@@ -491,4 +609,32 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export function formatDayLabel(day: string): string {
     const month = Number(day.slice(5, 7));
     return `${Number(day.slice(8, 10))} ${MONTHS[month - 1] ?? '?'}`;
+}
+
+/**
+ * Week-start day → the 7-day span it opens: '2026-06-22' → '22–28 Jun'
+ * (or '29 Jun–5 Jul' when the block straddles a month boundary).
+ */
+export function formatWeekLabel(weekStart: string): string {
+    const startMs = Date.parse(`${weekStart}T00:00:00Z`);
+    const start = new Date(startMs);
+    const end = new Date(startMs + 6 * DAY_MS);
+    const startMonth = MONTHS[start.getUTCMonth()] ?? '?';
+    const endMonth = MONTHS[end.getUTCMonth()] ?? '?';
+    return startMonth === endMonth
+        ? `${start.getUTCDate()}–${end.getUTCDate()} ${endMonth}`
+        : `${start.getUTCDate()} ${startMonth}–${end.getUTCDate()} ${endMonth}`;
+}
+
+/** '2026-07' → 'Jul 26' (axis label for the per-month bars). */
+export function formatMonthLabel(month: string): string {
+    const m = Number(month.slice(5, 7));
+    return `${MONTHS[m - 1] ?? '?'} ${month.slice(2, 4)}`;
+}
+
+/** Picks the axis-label formatter matching a series' granularity. */
+export function formatPeriodLabel(key: string, granularity: Granularity): string {
+    if (granularity === 'week') return formatWeekLabel(key);
+    if (granularity === 'month') return formatMonthLabel(key);
+    return formatDayLabel(key);
 }
