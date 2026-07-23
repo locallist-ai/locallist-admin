@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { borderRadius, colors, fonts, spacing } from '../lib/theme';
-import { RANGE_OPTIONS, type RangeDays } from '../lib/analyticsQueries';
+import { RANGE_OPTIONS, type RangeKey } from '../lib/analyticsQueries';
 
 /**
  * Presentational pieces of the Analytics screen: range chips, section
@@ -38,21 +38,21 @@ export function seriesColor(key: string): string {
 // ─── Range selector ──────────────────────────────────────────────────
 
 interface RangeSelectorProps {
-    value: RangeDays;
-    onChange: (days: RangeDays) => void;
+    value: RangeKey;
+    onChange: (key: RangeKey) => void;
 }
 
-/** 7 / 30 day chips shared by both blocks. */
+/** 7d / 30d / 90d / 1y / All chips shared by both blocks. */
 export function RangeSelector({ value, onChange }: RangeSelectorProps) {
     return (
         <View style={styles.rangeRow}>
-            {RANGE_OPTIONS.map(({ days, label }) => (
+            {RANGE_OPTIONS.map(({ key, label }) => (
                 <Pressable
-                    key={days}
-                    style={[styles.rangeChip, value === days && styles.rangeChipActive]}
-                    onPress={() => onChange(days)}
+                    key={key}
+                    style={[styles.rangeChip, value === key && styles.rangeChipActive]}
+                    onPress={() => onChange(key)}
                 >
-                    <Text style={[styles.rangeChipText, value === days && styles.rangeChipTextActive]}>
+                    <Text style={[styles.rangeChipText, value === key && styles.rangeChipTextActive]}>
                         {label}
                     </Text>
                 </Pressable>
@@ -203,7 +203,7 @@ export function StackedDayBars({
 
 const styles = StyleSheet.create({
     // Range chips
-    rangeRow: { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: 20, marginBottom: spacing.md },
+    rangeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingHorizontal: 20, marginBottom: spacing.md },
     rangeChip: {
         paddingHorizontal: 14, paddingVertical: 6,
         borderRadius: 16, borderWidth: 1, borderColor: colors.borderColor,

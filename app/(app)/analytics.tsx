@@ -20,9 +20,9 @@ import {
 import {
     ANALYTICS_MAX_PAGES,
     ANALYTICS_PAGE_LIMIT,
-    formatDayLabel,
     formatMs,
     formatPct,
+    formatPeriodLabel,
     formatUsd,
     safeDiv,
 } from '../../src/lib/analyticsQueries';
@@ -37,7 +37,7 @@ import { colors, fonts, spacing } from '../../src/lib/theme';
 export default function AnalyticsScreen() {
     const { isDesktop } = useBreakpoint();
     const {
-        rangeDays, setRangeDays, loading, error, truncated,
+        rangeKey, setRangeKey, granularity, loading, error, truncated,
         chatStats, chatAggregate, planStats, planAggregate, reload,
     } = useAnalyticsData();
 
@@ -68,7 +68,7 @@ export default function AnalyticsScreen() {
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
             <View style={isDesktop && styles.contentDesktop}>
-                <RangeSelector value={rangeDays} onChange={setRangeDays} />
+                <RangeSelector value={rangeKey} onChange={setRangeKey} />
 
                 {error && (
                     <View style={styles.errorBanner}>
@@ -81,9 +81,9 @@ export default function AnalyticsScreen() {
 
                 {truncated && (
                     <Text style={styles.truncatedNote}>
-                        Large range: daily series, percentiles and mixes are computed on the
+                        Large range: the series, percentiles and mixes are computed on the
                         {' '}{ANALYTICS_MAX_PAGES * ANALYTICS_PAGE_LIMIT} most recent rows of the
-                        range, so older days may be incomplete. Summary cards remain exact.
+                        range, so earlier periods may be incomplete. Summary cards remain exact.
                     </Text>
                 )}
 
@@ -96,9 +96,9 @@ export default function AnalyticsScreen() {
                         <SectionCard title="Chat">
                             <StatCardGrid items={chatItems} />
                             <BarList
-                                title="Turns / day"
-                                rows={(chatAggregate?.turnsPerDay ?? []).map((b) => ({
-                                    label: formatDayLabel(b.day), value: b.total, display: String(b.total),
+                                title="Turns / period"
+                                rows={(chatAggregate?.turnsPerPeriod ?? []).map((b) => ({
+                                    label: formatPeriodLabel(b.key, granularity), value: b.total, display: String(b.total),
                                 }))}
                                 emptyText="No chat turns in this range."
                             />
@@ -114,9 +114,9 @@ export default function AnalyticsScreen() {
                         <SectionCard title="Plans">
                             <StatCardGrid items={planItems} />
                             <StackedDayBars
-                                title="Plans / day by source"
-                                rows={(planAggregate?.plansPerDayBySource ?? []).map((b) => ({
-                                    label: formatDayLabel(b.day), counts: b.counts, total: b.total,
+                                title="Plans / period by source"
+                                rows={(planAggregate?.plansPerPeriodBySource ?? []).map((b) => ({
+                                    label: formatPeriodLabel(b.key, granularity), counts: b.counts, total: b.total,
                                 }))}
                                 seriesKeys={planAggregate?.sources ?? []}
                                 seriesTotals={Object.fromEntries(

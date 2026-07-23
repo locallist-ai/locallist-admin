@@ -1,15 +1,17 @@
 /**
  * Tests de los helpers puros de la pantalla Analytics
- * (`src/lib/analyticsQueries.ts`): bounds del rango, builders de query
- * contra los endpoints admin de analítica, loop de acumulación de
- * páginas, percentiles, bucketing por día UTC y formatters.
+ * (`src/lib/analyticsQueries.ts`): bounds del rango (incl. all-time y 1
+ * año), builders de query contra los endpoints admin de analítica (con
+ * y sin `from`), loop de acumulación de páginas, percentiles, bucketing
+ * por periodo (día/semana/mes), inicio de serie all-time desde la
+ * muestra, y formatters.
  */
 import { describe, it, expect } from 'vitest';
 import {
     aggregateChatTurns,
     aggregatePlanMetrics,
     ANALYTICS_PAGE_LIMIT,
-    bucketByDay,
+    bucketByPeriod,
     buildChatTurnsQuery,
     buildChatTurnsStatsQuery,
     buildPlanMetricsQuery,
@@ -18,42 +20,70 @@ import {
     dayKeyUtc,
     fetchAllPages,
     formatDayLabel,
+    formatMonthLabel,
     formatMs,
     formatPct,
+    formatPeriodLabel,
     formatUsd,
-    listDaysUtc,
+    formatWeekLabel,
+    granularityForRange,
     loadAnalytics,
     percentile,
-    rangeBounds,
+    RANGE_OPTIONS,
+    rangeForKey,
     safeDiv,
     type AdminChatTurn,
     type AdminPlanMetric,
     type AnalyticsPage,
+    type AnalyticsRange,
     type ApiCall,
 } from '../lib/analyticsQueries';
 
 const NOW = new Date('2026-07-22T10:00:00.000Z');
 
-describe('rangeBounds (anclado a medianoche UTC)', () => {
-    it('from = 00:00Z de hace N-1 días; to = now', () => {
-        expect(rangeBounds(7, NOW)).toEqual({
+/** Bucket count of a range at a granularity (via zero-filled series). */
+const bucketCount = (range: AnalyticsRange, granularity: 'day' | 'week' | 'month') =>
+    bucketByPeriod<{ at: string }>([], range, granularity, (i) => i.at).length;
+
+describe('rangeForKey (presets, anclado a medianoche UTC)', () => {
+    it('rangos finitos: from = 00:00Z de hace N-1 días; to = now', () => {
+        expect(rangeForKey('7d', NOW)).toEqual({
             from: '2026-07-16T00:00:00.000Z',
             to: '2026-07-22T10:00:00.000Z',
         });
-        expect(rangeBounds(30, NOW).from).toBe('2026-06-23T00:00:00.000Z');
+        expect(rangeForKey('30d', NOW).from).toBe('2026-06-23T00:00:00.000Z');
     });
 
-    it('un rango de N días produce exactamente N buckets diarios y solo el último ("hoy") es parcial', () => {
-        const days7 = listDaysUtc(rangeBounds(7, NOW));
-        expect(days7).toHaveLength(7);
-        expect(days7[0]).toBe('2026-07-16');
-        expect(days7[6]).toBe('2026-07-22');
-        expect(listDaysUtc(rangeBounds(30, NOW))).toHaveLength(30);
+    it('1 año = 365 días: from = hace 364 días a medianoche UTC', () => {
+        expect(rangeForKey('1y', NOW).from).toBe('2025-07-23T00:00:00.000Z');
+    });
+
+    it('all-time: from = null (sin límite inferior), to = now', () => {
+        expect(rangeForKey('all', NOW)).toEqual({ from: null, to: '2026-07-22T10:00:00.000Z' });
+    });
+
+    it('un rango de N días produce exactamente N buckets diarios; solo el último es parcial', () => {
+        expect(bucketCount(rangeForKey('7d', NOW), 'day')).toBe(7);
+        expect(bucketCount(rangeForKey('30d', NOW), 'day')).toBe(30);
+    });
+
+    it('RANGE_OPTIONS: 5 presets con su granularidad', () => {
+        expect(RANGE_OPTIONS.map((o) => o.key)).toEqual(['7d', '30d', '90d', '1y', 'all']);
+        expect(RANGE_OPTIONS.find((o) => o.key === 'all')?.days).toBeNull();
+        expect(RANGE_OPTIONS.find((o) => o.key === '1y')?.days).toBe(365);
+    });
+
+    it('granularityForRange: día(7/30) · semana(90) · mes(1y/all)', () => {
+        expect(granularityForRange('7d')).toBe('day');
+        expect(granularityForRange('30d')).toBe('day');
+        expect(granularityForRange('90d')).toBe('week');
+        expect(granularityForRange('1y')).toBe('month');
+        expect(granularityForRange('all')).toBe('month');
     });
 });
 
 describe('query builders (endpoints /admin/analytics/*)', () => {
-    const range = rangeBounds(7, NOW);
+    const range = rangeForKey('7d', NOW);
 
     it('lista de chat turns: paginación + rango, ISO escapado por URLSearchParams', () => {
         const url = buildChatTurnsQuery(range, 200, 400);
@@ -73,6 +103,18 @@ describe('query builders (endpoints /admin/analytics/*)', () => {
         expect(buildPlanMetricsQuery(range, 50, 0)).toContain('limit=50');
         expect(buildPlanMetricsQuery(range, 50, 0)).toContain('offset=0');
         expect(buildPlanMetricsStatsQuery(range)).toContain('/admin/analytics/plan-metrics/stats?from=');
+    });
+
+    it('all-time: los builders OMITEN `from` (solo to); el backend lo lee como sin límite inferior', () => {
+        const all = rangeForKey('all', NOW);
+        expect(buildChatTurnsStatsQuery(all)).toBe(
+            '/admin/analytics/chat-turns/stats?to=2026-07-22T10%3A00%3A00.000Z',
+        );
+        expect(buildChatTurnsQuery(all, 200, 0)).toBe(
+            '/admin/analytics/chat-turns?to=2026-07-22T10%3A00%3A00.000Z&limit=200&offset=0',
+        );
+        expect(buildPlanMetricsQuery(all, 200, 0)).not.toContain('from=');
+        expect(buildPlanMetricsStatsQuery(all)).not.toContain('from=');
     });
 
     it('el límite por página respeta el clamp del backend (máx 200)', () => {
@@ -204,16 +246,17 @@ describe('percentile (nearest-rank)', () => {
     });
 });
 
-describe('bucketing por día UTC', () => {
-    const range = { from: '2026-07-20T06:00:00.000Z', to: '2026-07-22T10:00:00.000Z' };
+describe('bucketByPeriod · granularidad diaria', () => {
+    const range: AnalyticsRange = { from: '2026-07-20T06:00:00.000Z', to: '2026-07-22T10:00:00.000Z' };
 
     it('dayKeyUtc normaliza offsets no-UTC al día UTC', () => {
         expect(dayKeyUtc('2026-07-22T01:30:00+03:00')).toBe('2026-07-21');
         expect(dayKeyUtc('2026-07-22T23:30:00-02:00')).toBe('2026-07-23');
     });
 
-    it('listDaysUtc cubre el rango inclusive, en orden', () => {
-        expect(listDaysUtc(range)).toEqual(['2026-07-20', '2026-07-21', '2026-07-22']);
+    it('cubre el rango inclusive, en orden, con clave por día', () => {
+        expect(bucketByPeriod<{ at: string }>([], range, 'day', (i) => i.at).map((b) => b.key))
+            .toEqual(['2026-07-20', '2026-07-21', '2026-07-22']);
     });
 
     it('rellena con cero los días sin datos y descarta items fuera de rango', () => {
@@ -223,7 +266,7 @@ describe('bucketing por día UTC', () => {
             { at: '2026-07-22T01:00:00Z' },
             { at: '2026-07-01T01:00:00Z' }, // fuera de rango
         ];
-        expect(bucketByDay(items, range, (i) => i.at).map((b) => [b.day, b.total])).toEqual([
+        expect(bucketByPeriod(items, range, 'day', (i) => i.at).map((b) => [b.key, b.total])).toEqual([
             ['2026-07-20', 2],
             ['2026-07-21', 0],
             ['2026-07-22', 1],
@@ -236,9 +279,83 @@ describe('bucketing por día UTC', () => {
             { at: '2026-07-20T09:00:00Z', source: 'wizard' },
             { at: '2026-07-20T10:00:00Z', source: 'chat' },
         ];
-        const [first] = bucketByDay(items, range, (i) => i.at, (i) => i.source);
+        const [first] = bucketByPeriod(items, range, 'day', (i) => i.at, (i) => i.source);
         expect(first.total).toBe(3);
         expect(first.counts).toEqual({ chat: 2, wizard: 1 });
+    });
+});
+
+describe('bucketByPeriod · granularidad semanal (bloques de 7 días anclados al final)', () => {
+    // to = 2026-07-22 → el último bloque cierra en 07-22 (07-16..07-22).
+    const range: AnalyticsRange = { from: '2026-07-01T00:00:00.000Z', to: '2026-07-22T10:00:00.000Z' };
+
+    it('las claves son el día de inicio de cada bloque de 7 días, hacia atrás desde `to`', () => {
+        expect(bucketByPeriod<{ at: string }>([], range, 'week', (i) => i.at).map((b) => b.key))
+            .toEqual(['2026-06-25', '2026-07-02', '2026-07-09', '2026-07-16']);
+    });
+
+    it('asigna cada item a su bloque semanal y descarta lo anterior al primer bloque', () => {
+        const items = [
+            { at: '2026-07-22T09:00:00Z' }, // bloque 07-16
+            { at: '2026-07-16T00:30:00Z' }, // bloque 07-16 (borde inferior del bloque final)
+            { at: '2026-07-15T12:00:00Z' }, // bloque 07-09 (borde superior)
+            { at: '2026-07-02T00:00:00Z' }, // bloque 07-02
+            { at: '2026-06-25T23:00:00Z' }, // bloque 06-25
+            { at: '2026-06-10T00:00:00Z' }, // fuera de rango → descartado
+        ];
+        expect(bucketByPeriod(items, range, 'week', (i) => i.at).map((b) => [b.key, b.total])).toEqual([
+            ['2026-06-25', 1],
+            ['2026-07-02', 1],
+            ['2026-07-09', 1],
+            ['2026-07-16', 2],
+        ]);
+    });
+});
+
+describe('bucketByPeriod · granularidad mensual', () => {
+    it('cubre los meses calendario del rango, inclusive, en orden', () => {
+        const range: AnalyticsRange = { from: '2026-05-10T00:00:00.000Z', to: '2026-07-22T10:00:00.000Z' };
+        const items = [
+            { at: '2026-05-31T23:00:00Z' },
+            { at: '2026-06-01T00:00:00Z' },
+            { at: '2026-07-22T09:00:00Z' },
+            { at: '2026-07-10T00:00:00Z' },
+            { at: '2026-04-30T00:00:00Z' }, // fuera de rango → descartado
+        ];
+        expect(bucketByPeriod(items, range, 'month', (i) => i.at).map((b) => [b.key, b.total])).toEqual([
+            ['2026-05', 1],
+            ['2026-06', 1],
+            ['2026-07', 2],
+        ]);
+    });
+
+    it('la enumeración de meses cruza el cambio de año', () => {
+        const range: AnalyticsRange = { from: '2025-11-15T00:00:00.000Z', to: '2026-01-05T10:00:00.000Z' };
+        expect(bucketByPeriod<{ at: string }>([], range, 'month', (i) => i.at).map((b) => b.key))
+            .toEqual(['2025-11', '2025-12', '2026-01']);
+    });
+});
+
+describe('bucketByPeriod · inicio de serie all-time (from = null)', () => {
+    const range: AnalyticsRange = { from: null, to: '2026-07-22T10:00:00.000Z' };
+
+    it('deriva el inicio de la serie del createdAt MÁS ANTIGUO de la muestra y rellena con cero', () => {
+        const items = [
+            { at: '2026-05-01T00:00:00Z' },
+            { at: '2026-03-15T00:00:00Z' }, // el más antiguo → ancla el inicio
+            { at: '2026-07-20T00:00:00Z' },
+        ];
+        expect(bucketByPeriod(items, range, 'month', (i) => i.at).map((b) => [b.key, b.total])).toEqual([
+            ['2026-03', 1],
+            ['2026-04', 0],
+            ['2026-05', 1],
+            ['2026-06', 0],
+            ['2026-07', 1],
+        ]);
+    });
+
+    it('muestra all-time vacía → serie vacía (no hay lower bound del que partir)', () => {
+        expect(bucketByPeriod<{ at: string }>([], range, 'month', (i) => i.at)).toEqual([]);
     });
 });
 
@@ -259,7 +376,7 @@ describe('countByKey', () => {
 });
 
 describe('agregados de bloque', () => {
-    const range = { from: '2026-07-21T00:00:00.000Z', to: '2026-07-22T10:00:00.000Z' };
+    const range: AnalyticsRange = { from: '2026-07-21T00:00:00.000Z', to: '2026-07-22T10:00:00.000Z' };
 
     const turn = (over: Partial<AdminChatTurn>): AdminChatTurn => ({
         id: '1', createdAt: '2026-07-21T08:00:00Z', sessionId: null, userId: null,
@@ -270,14 +387,14 @@ describe('agregados de bloque', () => {
         ...over,
     });
 
-    it('aggregateChatTurns: serie diaria, percentiles y mix provider · model', () => {
+    it('aggregateChatTurns: serie por periodo, percentiles y mix provider · model', () => {
         const agg = aggregateChatTurns([
             turn({ latencyMs: 200 }),
             turn({ latencyMs: 800, createdAt: '2026-07-22T09:00:00Z' }),
             turn({ latencyMs: 400, aiProvider: 'openai', model: 'gpt-5-nano' }),
-        ], range);
+        ], range, 'day');
 
-        expect(agg.turnsPerDay.map((b) => b.total)).toEqual([2, 1]);
+        expect(agg.turnsPerPeriod.map((b) => b.total)).toEqual([2, 1]);
         expect(agg.latencyP50).toBe(400);
         expect(agg.latencyP95).toBe(800);
         expect(agg.providerModelMix.map((m) => m.key)).toEqual([
@@ -287,10 +404,10 @@ describe('agregados de bloque', () => {
     });
 
     it('aggregateChatTurns sin datos: percentiles null, series a cero', () => {
-        const agg = aggregateChatTurns([], range);
+        const agg = aggregateChatTurns([], range, 'day');
         expect(agg.latencyP50).toBeNull();
         expect(agg.latencyP95).toBeNull();
-        expect(agg.turnsPerDay.every((b) => b.total === 0)).toBe(true);
+        expect(agg.turnsPerPeriod.every((b) => b.total === 0)).toBe(true);
         expect(agg.providerModelMix).toEqual([]);
     });
 
@@ -307,11 +424,11 @@ describe('agregados de bloque', () => {
             metric({ generationSource: 'wizard' }),
             metric({}),
             metric({}),
-        ], range);
+        ], range, 'day');
 
         expect(agg.sources).toEqual(['chat', 'wizard']);
         expect(agg.sourceMix[0]).toEqual({ key: 'chat', count: 2, share: 2 / 3 });
-        expect(agg.plansPerDayBySource[0].counts).toEqual({ chat: 2, wizard: 1 });
+        expect(agg.plansPerPeriodBySource[0].counts).toEqual({ chat: 2, wizard: 1 });
     });
 });
 
@@ -351,7 +468,7 @@ describe('loadAnalytics (orquestación con api inyectada)', () => {
         const controller = new AbortController();
         const { api, seenSignals, paths } = makeApi();
 
-        const snapshot = await loadAnalytics(api, 7, { now: NOW, signal: controller.signal });
+        const snapshot = await loadAnalytics(api, '7d', { now: NOW, signal: controller.signal });
 
         expect(paths).toHaveLength(4);
         expect(seenSignals.every((s) => s === controller.signal)).toBe(true);
@@ -361,22 +478,37 @@ describe('loadAnalytics (orquestación con api inyectada)', () => {
 
     it('snapshot feliz: stats + agregados coherentes con el rango', async () => {
         const { api } = makeApi();
-        const snapshot = await loadAnalytics(api, 7, { now: NOW });
+        const snapshot = await loadAnalytics(api, '7d', { now: NOW });
 
         expect(snapshot.chatStats?.totalTurns).toBe(1);
-        expect(snapshot.chatAggregate.turnsPerDay).toHaveLength(7);
+        expect(snapshot.chatAggregate.turnsPerPeriod).toHaveLength(7);
         expect(snapshot.planAggregate.sources).toEqual(['chat']);
         expect(snapshot.truncated).toBe(false);
+    });
+
+    it('all-time: omite `from` en las 4 rutas y deriva la serie mensual de la muestra', async () => {
+        const { api, paths } = makeApi({
+            chatTurns: [{ createdAt: '2026-05-10T08:00:00Z' }, { createdAt: '2026-07-20T08:00:00Z' }],
+        });
+
+        const snapshot = await loadAnalytics(api, 'all', { now: NOW });
+
+        expect(paths).toHaveLength(4);
+        expect(paths.every((p) => !p.includes('from='))).toBe(true);
+        // Serie mensual desde el más antiguo de la muestra (mayo) hasta `to` (julio).
+        expect(snapshot.chatAggregate.turnsPerPeriod.map((b) => b.key)).toEqual([
+            '2026-05', '2026-06', '2026-07',
+        ]);
     });
 
     it('MINOR-4: un throw en la agregación (ISO inválido) resuelve en snapshot de error, nunca rechaza', async () => {
         const { api } = makeApi({ chatTurns: [{ createdAt: 'not-a-date' }] });
 
-        const snapshot = await loadAnalytics(api, 7, { now: NOW });
+        const snapshot = await loadAnalytics(api, '7d', { now: NOW });
 
         expect(snapshot.error).toBeTruthy();
         expect(snapshot.chatStats).toBeNull();
-        expect(snapshot.chatAggregate.turnsPerDay.every((b) => b.total === 0)).toBe(true);
+        expect(snapshot.chatAggregate.turnsPerPeriod.every((b) => b.total === 0)).toBe(true);
     });
 
     it('el error de un endpoint aflora en el snapshot sin tumbar el resto', async () => {
@@ -388,7 +520,7 @@ describe('loadAnalytics (orquestación con api inyectada)', () => {
             return base.api<T>(path, options);
         };
 
-        const snapshot = await loadAnalytics(api, 7, { now: NOW });
+        const snapshot = await loadAnalytics(api, '7d', { now: NOW });
 
         expect(snapshot.error).toBe('HTTP 500');
         expect(snapshot.planStats).toBeNull();
@@ -423,5 +555,22 @@ describe('safeDiv y formatters', () => {
     it('formatDayLabel: día + mes corto', () => {
         expect(formatDayLabel('2026-07-22')).toBe('22 Jul');
         expect(formatDayLabel('2026-01-05')).toBe('5 Jan');
+    });
+
+    it('formatWeekLabel: span de 7 días desde el inicio de bloque', () => {
+        expect(formatWeekLabel('2026-06-22')).toBe('22–28 Jun');
+        // Bloque que cruza el cambio de mes.
+        expect(formatWeekLabel('2026-06-29')).toBe('29 Jun–5 Jul');
+    });
+
+    it('formatMonthLabel: mes corto + año de 2 dígitos', () => {
+        expect(formatMonthLabel('2026-07')).toBe('Jul 26');
+        expect(formatMonthLabel('2026-01')).toBe('Jan 26');
+    });
+
+    it('formatPeriodLabel despacha por granularidad', () => {
+        expect(formatPeriodLabel('2026-07-22', 'day')).toBe('22 Jul');
+        expect(formatPeriodLabel('2026-06-22', 'week')).toBe('22–28 Jun');
+        expect(formatPeriodLabel('2026-07', 'month')).toBe('Jul 26');
     });
 });
