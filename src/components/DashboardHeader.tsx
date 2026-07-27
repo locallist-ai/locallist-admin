@@ -7,6 +7,7 @@ import {
     ActivityIndicator,
     StyleSheet,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import LanguageToggle from './LanguageToggle';
 import { colors, fonts, spacing, borderRadius } from '../lib/theme';
@@ -22,6 +23,7 @@ interface DashboardHeaderProps {
 
 /** Logo + analytics / refresh / create / logout row. The "+ Create" menu lives in the screen. */
 export default function DashboardHeader({ refreshing, isDesktop, onRefresh, onCreatePress, onAnalyticsPress }: DashboardHeaderProps) {
+    const { t } = useTranslation();
     const { signOut } = useAuth();
 
     return (
@@ -34,7 +36,7 @@ export default function DashboardHeader({ refreshing, isDesktop, onRefresh, onCr
             <View style={styles.headerRight}>
                 <LanguageToggle />
                 <Pressable style={styles.analyticsBtn} onPress={onAnalyticsPress}>
-                    <Text style={styles.analyticsBtnText}>Analytics</Text>
+                    <Text style={styles.analyticsBtnText}>{t('nav.analytics')}</Text>
                 </Pressable>
                 <Pressable
                     style={[styles.refreshBtn, refreshing && { opacity: 0.5 }]}

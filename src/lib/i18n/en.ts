@@ -50,6 +50,8 @@ export default {
       finishReasons: 'Finish reasons',
       errorCodes: 'Error codes',
       empty: 'No chat turns in this range.',
+      noErrors: 'No errors in this range.',
+      noData: 'No data in this range.',
     },
     plans: {
       title: 'Plans',
@@ -74,7 +76,7 @@ export default {
       cost: 'Spend on AI tokens. The variable cost of the chat.',
       latency: 'Half of turns answer under p50; p95 is the slow tail. Reflects the experience and provider degradation.',
       errorRate: 'Percentage of failed turns. Measures the health of the AI pipeline.',
-      slotCompleteness: 'How many of the 9 preferences the conversation extracts on average. Shows whether it gathers enough to generate a plan.',
+      slotCompleteness: 'Average (0-100) of the 5 critical preferences (city, days, group, interests, budget) the chat captures. Shows whether it gathers enough to generate a plan.',
       turnsPerPeriod: 'How turn volume evolves over the period.',
       providerModel: 'Split by the LLM that answered each turn. Shows how often the fallback kicks in.',
       finishReasons: 'The reason each model turn finished with. Helps spot truncation or filtered answers.',

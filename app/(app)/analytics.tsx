@@ -134,13 +134,13 @@ export default function AnalyticsScreen() {
                                 title={t('analytics.chat.finishReasons')}
                                 info={t(legendKey('finishReasons'))}
                                 rows={finishReasonRows}
-                                emptyText={t('analytics.chat.empty')}
+                                emptyText={t('analytics.chat.noData')}
                             />
                             <BarList
                                 title={t('analytics.chat.errorCodes')}
                                 info={t(legendKey('errorCodes'))}
                                 rows={errorCodeRows}
-                                emptyText={t('analytics.chat.empty')}
+                                emptyText={t('analytics.chat.noErrors')}
                             />
                         </SectionCard>
 

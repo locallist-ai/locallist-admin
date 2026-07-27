@@ -133,19 +133,18 @@ export type Granularity = 'day' | 'week' | 'month';
 
 export interface RangeOption {
     key: RangeKey;
-    label: string;
     /** Window length in days; `null` for all-time (no lower bound). */
     days: number | null;
     granularity: Granularity;
 }
 
+// Chip labels are i18n'd in the UI (`analytics.ranges.<key>`), so no label here.
 export const RANGE_OPTIONS: RangeOption[] = [
-    // Compact labels keep all five chips on one row on a phone.
-    { key: '7d', label: '7d', days: 7, granularity: 'day' },
-    { key: '30d', label: '30d', days: 30, granularity: 'day' },
-    { key: '90d', label: '90d', days: 90, granularity: 'week' },
-    { key: '1y', label: '1y', days: 365, granularity: 'month' },
-    { key: 'all', label: 'All', days: null, granularity: 'month' },
+    { key: '7d', days: 7, granularity: 'day' },
+    { key: '30d', days: 30, granularity: 'day' },
+    { key: '90d', days: 90, granularity: 'week' },
+    { key: '1y', days: 365, granularity: 'month' },
+    { key: 'all', days: null, granularity: 'month' },
 ];
 
 const RANGE_OPTION_BY_KEY: Record<RangeKey, RangeOption> = Object.fromEntries(

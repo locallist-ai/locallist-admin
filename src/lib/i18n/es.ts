@@ -48,6 +48,8 @@ export default {
       finishReasons: 'Motivos de fin',
       errorCodes: 'Códigos de error',
       empty: 'Sin turnos en este rango.',
+      noErrors: 'Sin errores en este rango.',
+      noData: 'Sin datos en este rango.',
     },
     plans: {
       title: 'Planes',
@@ -72,7 +74,7 @@ export default {
       cost: 'Gasto en tokens de IA. Es el coste variable del chat.',
       latency: 'La mitad de los turnos responde por debajo de p50; p95 es la cola lenta. Refleja la experiencia y la degradación del proveedor.',
       errorRate: 'Porcentaje de turnos fallidos. Mide la salud del pipeline de IA.',
-      slotCompleteness: 'Cuántas de las 9 preferencias extrae de media la conversación. Indica si llega a tener datos para generar un plan.',
+      slotCompleteness: 'Media (0-100) de las 5 preferencias críticas (ciudad, días, grupo, intereses, presupuesto) que capta la conversación. Indica si llega a tener datos para generar un plan.',
       turnsPerPeriod: 'Evolución del volumen de turnos a lo largo del periodo.',
       providerModel: 'Reparto por el LLM que respondió cada turno. Muestra cuánto entra el fallback.',
       finishReasons: 'Motivo con el que terminó cada turno del modelo. Ayuda a detectar truncados o respuestas filtradas.',
