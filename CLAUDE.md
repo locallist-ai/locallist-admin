@@ -11,6 +11,17 @@ When the user says "admin", "erp", "admin app", they mean this project (`LocalLi
 | **Auth** | Firebase / Google Identity (locked to `@locallist.ai` domain) |
 | **Purpose** | Internal tool for curators to review places ingested by AI/Data pipelines. |
 
+## i18n (EN + ES)
+
+**Convención (2026-07-27): el admin YA NO es solo-inglés.** Ahora es **EN + ES (España)** con selector de idioma. Esto revierte la vieja regla "admin solo inglés". Mismo patrón que la app (`i18next` + `react-i18next` + `expo-localization`).
+
+- Infra en `src/lib/i18n/`: `index.ts` (init; idioma por defecto = el del dispositivo, fallback EN; preferencia persistida con **AsyncStorage** —no SecureStore— para que sobreviva recargas también en web, donde el admin se usa sobre todo), `en.ts` + `es.ts` (recursos, `as const`), `i18next.d.ts` (tipado estricto de claves).
+- Init: side-effect import `import '../src/lib/i18n'` en `app/_layout.tsx` (antes de cualquier `useTranslation`).
+- Selector: `src/components/LanguageToggle.tsx` (toggle EN/ES accesible en el `DashboardHeader`).
+- **Paridad EN/ES obligatoria**: `src/__tests__/i18nParity.test.ts` falla ante cualquier drift de claves o placeholders (y prohíbe em-dash en strings).
+- Uso: `t('key')`, nunca literales visibles. Añade claves a `en.ts` **y** `es.ts`.
+- **Fase 1 (hecha)**: traducidas la pantalla de Analíticas (`app/(app)/analytics.tsx` + `src/components/AnalyticsBlocks.tsx`) y los títulos de navegación (`app/(app)/_layout.tsx`). El resto del admin (editores de place/plan, dashboard, imports) sigue en inglés hardcodeado — pendiente de una fase posterior; la infra ya está lista para migrarlo.
+
 ## Firebase Config
 
 Firebase config del SDK JS viene de `app.config.ts` que parsea `GoogleService-Info.plist` con `plutil` en build time. **No** de `EXPO_PUBLIC_FIREBASE_*` env vars. Para actualizar la config de Firebase, reemplazar el plist y reconstruir.
@@ -36,7 +47,7 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 ## Key Files
 
 - `app/(app)/index.tsx` — Main dashboard (~300 lines of composition). Mode toggle (places / plans) + batch-translate overlay; data lives in `usePlacesData` / `usePlansData` / `useFilterState`, UI in `DashboardHeader`, `FilterBar`, `StatusTabs`, `BatchActionsRow`, `PlacesList`, `PlansList`. Swipe UI only for `in_review` places.
-- `app/(app)/analytics.tsx` — Product analytics screen (fase 1): Chat block (`chat_turns`: turns/period, cost, latency p50/p95, provider·model mix, slot completeness) + Plans block (`plan_metrics`: plans/period by source, avg cost, % opened/followed), shared preset range (7d/30d/90d/1y/all). Granularity follows the range: daily (7d/30d), weekly (90d), monthly (1y/all); the truncated note flags that long-range series/mixes are the most-recent 2.000 rows (stat cards stay exact via `/stats`). Composition only; data in `useAnalyticsData`, logic in `src/lib/analyticsQueries.ts`. Extension point marcado para el bloque de monetización (fase 2, aplazada).
+- `app/(app)/analytics.tsx` — Product analytics screen (fase 1): Chat block (`chat_turns`: turns/period, cost, latency p50/p95, provider·model mix, slot completeness) + Plans block (`plan_metrics`: plans/period by source, avg cost, % opened/followed), shared preset range (7d/30d/90d/1y/all). Granularity follows the range: daily (7d/30d), weekly (90d), monthly (1y/all); the truncated note flags that long-range series/mixes are the most-recent 2.000 rows (stat cards stay exact via `/stats`). Composition only; data in `useAnalyticsData`, logic in `src/lib/analyticsQueries.ts`. Full i18n (EN+ES via `t()`); cada métrica lleva una LEYENDA de 1 línea tras un icono "i" (`InfoTip`). Pinta también datos que las `/stats` YA devuelven: **Por ciudad** (`byCity`) y los breakdowns de chat **finishReasons/errorCodes** (cero backend nuevo). Extension point marcado para el bloque de monetización (fase 2, aplazada).
 - `app/(app)/place/[id].tsx` — Place detail/edit screen (thin composition). Logic lives in `usePlaceForm`; AI description suggestion (`POST /admin/places/{id}/suggest-description`).
 - `app/(app)/place/create.tsx` — Place creation form.
 - `app/(app)/places/import-batch.tsx` — CSV batch import.
@@ -47,7 +58,9 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 - `app/(auth)/login.tsx` — Google Sign-In: Firebase popup on web, native SDK on mobile. Domain locked to `@locallist.ai`.
 - `src/components/SwipeCard.tsx` — Gesture-handled card for approving/rejecting places.
 - `src/components/DashboardHeader.tsx` — Logo + analytics / refresh / create / logout row (presentational; the "+ Create" menu per mode and the Analytics navigation live in `index.tsx` via `onCreatePress` / `onAnalyticsPress`).
-- `src/components/AnalyticsBlocks.tsx` — Presentational pieces of the Analytics screen: range chips, section cards, stat tiles, single-hue `BarList` and per-source `StackedDayBars` (fixed series-color order, no chart libs).
+- `src/components/AnalyticsBlocks.tsx` — Presentational pieces of the Analytics screen: range chips (labels i18n'd via `analytics.ranges.*`), section cards, stat tiles, single-hue `BarList` and per-source `StackedDayBars` (fixed series-color order, no chart libs), `CityStatsTable` (per-city count/opened/followed table), and `InfoTip` (the "i" legend affordance: tap opens a modal with the metric's one-line explanation — RN-web tooltips are unreliable, so tap-to-open is the design). Stat tiles + chart titles accept an optional `info` string.
+- `src/components/LanguageToggle.tsx` — Accessible EN/ES toggle button in the `DashboardHeader` (flips `i18n.language`).
+- `src/lib/analyticsLegend.ts` — Pure metric -> legend i18n-key mapping (`CHAT_METRICS`/`PLAN_METRICS`, `legendKey`). Tested (every metric has a legend present in EN+ES).
 - `src/components/FilterBar.tsx` — Name search + city chips; exports `FilterChipRow` (reused for the category filter).
 - `src/components/StatusTabs.tsx` — Queue / Published / Rejected tabs with count badges.
 - `src/components/BatchActionsRow.tsx` — Translate / Reindex / Hours actions for published places.
@@ -64,7 +77,7 @@ Always build through the wrapper (`scripts/build-local.sh`), never raw `eas buil
 - `src/lib/taxonomy.ts` — Static taxonomy: `CATEGORIES`, `SUBCATEGORIES_BY_CATEGORY`, Google types → subcategory mapping. Pickers prefer the live API taxonomy (`useTaxonomy`); the static list is inference + fallback only.
 - `src/lib/subcategories.ts` — Pure API calls for creating subcategories (single + batch with partial-failure reporting).
 - `src/lib/dashboardQueries.ts` — Pure query/pagination rules for the dashboard (filters, badges, refresh per mode). Tested.
-- `src/lib/analyticsQueries.ts` — Pure logic behind the Analytics screen: DTO types of `/admin/analytics/chat-turns[/stats]` and `/admin/analytics/plan-metrics[/stats]` (ojo: `WhenWritingNull` — los `| null` llegan como campo ausente), preset ranges (`RangeKey` 7d/30d/90d/1y/all; `all` → `from: null` y el builder OMITE `from`), range bounds anclado a medianoche UTC (N días = N buckets), granularidad por rango (día/semana/mes vía `granularityForRange`), query builders (limit clamp 200), page-accumulation loop with injected API + AbortSignal + dedupe por id + `truncated` flag, `bucketByPeriod` (día UTC / semana anclada al final del rango en bloques de 7 / mes calendario; para `all` la serie arranca en el `createdAt` más antiguo de la muestra), nearest-rank percentiles, mixes, period-label formatters (día/semana/mes), and `loadAnalytics` (full-range orchestration with injected API; never rejects — throws become error snapshots). Tested.
+- `src/lib/analyticsQueries.ts` — Pure logic behind the Analytics screen: DTO types of `/admin/analytics/chat-turns[/stats]` and `/admin/analytics/plan-metrics[/stats]` (ojo: `WhenWritingNull` — los `| null` llegan como campo ausente), preset ranges (`RangeKey` 7d/30d/90d/1y/all; `all` → `from: null` y el builder OMITE `from`), range bounds anclado a medianoche UTC (N días = N buckets), granularidad por rango (día/semana/mes vía `granularityForRange`), query builders (limit clamp 200), page-accumulation loop with injected API + AbortSignal + dedupe por id + `truncated` flag, `bucketByPeriod` (día UTC / semana anclada al final del rango en bloques de 7 / mes calendario; para `all` la serie arranca en el `createdAt` más antiguo de la muestra), nearest-rank percentiles, mixes, period-label formatters (día/semana/mes), `loadAnalytics` (full-range orchestration with injected API; never rejects — throws become error snapshots), y `breakdownToRows`/`sortCityStats` (ordenación pura de los distributions que las `/stats` ya devuelven: finishReason/errorCode y byCity). Tested.
 - `src/lib/optimisticList.ts` — Pure list/count ops behind optimistic updates with rollback. Tested.
 - `src/lib/batchTranslate.ts` — Chunked batch-translate loop with injected API call. Tested.
 - `src/lib/planForm.ts` — Pure logic behind `usePlanForm`: plan→form/stops mapping, metadata diff, stop ops (add with per-day cap, remove/move + reindex), and `savePlan` (single atomic `PATCH /admin/plans/{id}` carrying metadata + full stop list, error path) with injected API. Tested.

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { borderRadius, colors, fonts, spacing } from '../lib/theme';
 import { RANGE_OPTIONS, type RangeKey } from '../lib/analyticsQueries';
 
@@ -35,6 +36,53 @@ export function seriesColor(key: string): string {
     return SERIES_COLORS[hash % SERIES_COLORS.length];
 }
 
+// ─── Legend ("i" tooltip) ────────────────────────────────────────────
+
+/**
+ * "i" affordance next to a metric title/tile. Opens a small modal with a
+ * one-line explanation of what the metric measures and why it matters
+ * (RN-web tooltips are unreliable, so a tap-to-open modal is the fallback
+ * per the design). `title`/`body` arrive already translated by the caller.
+ */
+export function InfoTip({ title, body }: { title: string; body: string }) {
+    const { t } = useTranslation();
+    const [open, setOpen] = React.useState(false);
+    return (
+        <>
+            <Pressable
+                onPress={() => setOpen(true)}
+                hitSlop={8}
+                style={styles.infoBtn}
+                accessibilityRole="button"
+                accessibilityLabel={t('analytics.legend.a11y', { metric: title })}
+            >
+                <Text style={styles.infoBtnText}>i</Text>
+            </Pressable>
+            <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+                <Pressable style={styles.infoOverlay} onPress={() => setOpen(false)}>
+                    <Pressable style={styles.infoCard} onPress={(e) => e.stopPropagation()}>
+                        <Text style={styles.infoTitle}>{title}</Text>
+                        <Text style={styles.infoBody}>{body}</Text>
+                        <Pressable onPress={() => setOpen(false)} style={styles.infoClose}>
+                            <Text style={styles.infoCloseText}>{t('common.close')}</Text>
+                        </Pressable>
+                    </Pressable>
+                </Pressable>
+            </Modal>
+        </>
+    );
+}
+
+/** Chart/section title with an optional "i" legend tip beside it. */
+function TitleWithInfo({ title, info, style }: { title: string; info?: string; style: object }) {
+    return (
+        <View style={styles.titleRow}>
+            <Text style={style}>{title}</Text>
+            {info ? <InfoTip title={title} body={info} /> : null}
+        </View>
+    );
+}
+
 // ─── Range selector ──────────────────────────────────────────────────
 
 interface RangeSelectorProps {
@@ -42,18 +90,19 @@ interface RangeSelectorProps {
     onChange: (key: RangeKey) => void;
 }
 
-/** 7d / 30d / 90d / 1y / All chips shared by both blocks. */
+/** 7d / 30d / 90d / 1y / All chips shared by both blocks (labels i18n'd). */
 export function RangeSelector({ value, onChange }: RangeSelectorProps) {
+    const { t } = useTranslation();
     return (
         <View style={styles.rangeRow}>
-            {RANGE_OPTIONS.map(({ key, label }) => (
+            {RANGE_OPTIONS.map(({ key }) => (
                 <Pressable
                     key={key}
                     style={[styles.rangeChip, value === key && styles.rangeChipActive]}
                     onPress={() => onChange(key)}
                 >
                     <Text style={[styles.rangeChipText, value === key && styles.rangeChipTextActive]}>
-                        {label}
+                        {t(`analytics.ranges.${key}` as 'analytics.ranges.all')}
                     </Text>
                 </Pressable>
             ))}
@@ -77,6 +126,8 @@ export interface StatItem {
     value: string;
     /** Optional secondary line under the value (e.g. "p95 2.1s"). */
     hint?: string;
+    /** Optional legend line ("what it measures"), shown behind an "i" tip. */
+    info?: string;
 }
 
 export function StatCardGrid({ items }: { items: StatItem[] }) {
@@ -85,7 +136,10 @@ export function StatCardGrid({ items }: { items: StatItem[] }) {
             {items.map((item) => (
                 <View key={item.label} style={styles.statCard}>
                     <Text style={styles.statValue}>{item.value}</Text>
-                    <Text style={styles.statLabel}>{item.label}</Text>
+                    <View style={styles.statLabelRow}>
+                        <Text style={styles.statLabel}>{item.label}</Text>
+                        {item.info ? <InfoTip title={item.label} body={item.info} /> : null}
+                    </View>
                     {item.hint ? <Text style={styles.statHint}>{item.hint}</Text> : null}
                 </View>
             ))}
@@ -106,11 +160,11 @@ export interface BarRow {
  * Label + thin single-hue bar + value, scaled to the max row. Used for
  * turns/day and the provider · model mix.
  */
-export function BarList({ title, rows, emptyText }: { title: string; rows: BarRow[]; emptyText: string }) {
+export function BarList({ title, info, rows, emptyText }: { title: string; info?: string; rows: BarRow[]; emptyText: string }) {
     const max = rows.reduce((acc, r) => Math.max(acc, r.value), 0);
     return (
         <View style={styles.chartBlock}>
-            <Text style={styles.chartTitle}>{title}</Text>
+            <TitleWithInfo title={title} info={info} style={styles.chartTitle} />
             {rows.length === 0 || max === 0 ? (
                 <Text style={styles.emptyText}>{emptyText}</Text>
             ) : (
@@ -146,12 +200,14 @@ export interface StackedDayRow {
  */
 export function StackedDayBars({
     title,
+    info,
     rows,
     seriesKeys,
     seriesTotals,
     emptyText,
 }: {
     title: string;
+    info?: string;
     rows: StackedDayRow[];
     /** Sorted keys (display order only — color comes from `seriesColor(key)`). */
     seriesKeys: string[];
@@ -161,7 +217,7 @@ export function StackedDayBars({
     const max = rows.reduce((acc, r) => Math.max(acc, r.total), 0);
     return (
         <View style={styles.chartBlock}>
-            <Text style={styles.chartTitle}>{title}</Text>
+            <TitleWithInfo title={title} info={info} style={styles.chartTitle} />
             {seriesKeys.length > 0 && (
                 <View style={styles.legendRow}>
                     {seriesKeys.map((key) => (
@@ -201,6 +257,65 @@ export function StackedDayBars({
     );
 }
 
+// ─── Per-city table ──────────────────────────────────────────────────
+
+export interface CityStatRow {
+    city: string;
+    count: string;
+    /** Open rate, preformatted (e.g. "42%"). */
+    open: string;
+    /** Follow rate, preformatted. */
+    follow: string;
+}
+
+/**
+ * Compact per-city table (City / Plans / Opened / Followed) fed by the
+ * `byCity` distribution the plan-metrics /stats endpoint already returns.
+ * Presentational: rows arrive preformatted, headers are i18n'd here.
+ */
+export function CityStatsTable({
+    title,
+    info,
+    rows,
+    emptyText,
+}: {
+    title: string;
+    info?: string;
+    rows: CityStatRow[];
+    emptyText: string;
+}) {
+    const { t } = useTranslation();
+    return (
+        <View style={styles.chartBlock}>
+            <TitleWithInfo title={title} info={info} style={styles.chartTitle} />
+            {rows.length === 0 ? (
+                <Text style={styles.emptyText}>{emptyText}</Text>
+            ) : (
+                <>
+                    <View style={[styles.cityRow, styles.cityHeaderRow]}>
+                        <Text style={[styles.cityCell, styles.cityNameCell, styles.cityHeaderText]} numberOfLines={1}>
+                            {t('analytics.cityTable.city')}
+                        </Text>
+                        <Text style={[styles.cityCell, styles.cityHeaderText]}>{t('analytics.cityTable.count')}</Text>
+                        <Text style={[styles.cityCell, styles.cityHeaderText]}>{t('analytics.cityTable.opened')}</Text>
+                        <Text style={[styles.cityCell, styles.cityHeaderText]}>{t('analytics.cityTable.followed')}</Text>
+                    </View>
+                    {rows.map((row) => (
+                        <View key={row.city} style={styles.cityRow}>
+                            <Text style={[styles.cityCell, styles.cityNameCell, styles.cityNameText]} numberOfLines={1}>
+                                {row.city}
+                            </Text>
+                            <Text style={[styles.cityCell, styles.cityValueText]}>{row.count}</Text>
+                            <Text style={[styles.cityCell, styles.cityValueText]}>{row.open}</Text>
+                            <Text style={[styles.cityCell, styles.cityValueText]}>{row.follow}</Text>
+                        </View>
+                    ))}
+                </>
+            )}
+        </View>
+    );
+}
+
 const styles = StyleSheet.create({
     // Range chips
     rangeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingHorizontal: 20, marginBottom: spacing.md },
@@ -232,8 +347,46 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
     },
     statValue: { fontFamily: fonts.bodySemiBold, fontSize: 20, color: colors.textMain },
-    statLabel: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+    statLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+    statLabel: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary },
     statHint: { fontFamily: fonts.body, fontSize: 11, color: colors.textSecondary, marginTop: 2 },
+
+    // Legend "i" tip
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    infoBtn: {
+        width: 16, height: 16, borderRadius: 8,
+        borderWidth: 1, borderColor: colors.textSecondary,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    infoBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 10, lineHeight: 12, color: colors.textSecondary },
+    infoOverlay: {
+        flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+        alignItems: 'center', justifyContent: 'center', padding: spacing.lg,
+    },
+    infoCard: {
+        backgroundColor: colors.bgMain, borderRadius: borderRadius.lg,
+        padding: spacing.lg, maxWidth: 360, width: '100%', gap: spacing.sm,
+    },
+    infoTitle: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.deepOcean },
+    infoBody: { fontFamily: fonts.body, fontSize: 14, color: colors.textMain, lineHeight: 20 },
+    infoClose: {
+        alignSelf: 'flex-end', marginTop: spacing.xs,
+        paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+        borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.borderColor,
+    },
+    infoCloseText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textMain },
+
+    // Per-city table
+    cityRow: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.borderColor,
+    },
+    cityHeaderRow: { borderBottomWidth: 0 },
+    cityCell: { width: 56, textAlign: 'right', fontFamily: fonts.body, fontSize: 12 },
+    cityNameCell: { flex: 1, textAlign: 'left', width: undefined },
+    cityHeaderText: { color: colors.textSecondary, fontFamily: fonts.bodySemiBold },
+    cityNameText: { color: colors.textMain },
+    cityValueText: { color: colors.textMain, fontFamily: fonts.bodySemiBold },
 
     // Charts
     chartBlock: { marginBottom: spacing.sm },

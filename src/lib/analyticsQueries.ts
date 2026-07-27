@@ -503,6 +503,36 @@ export function safeDiv(numerator: number, denominator: number): number | null {
     return denominator > 0 ? numerator / denominator : null;
 }
 
+// ─── Stats-endpoint distributions (already computed by the backend) ───
+//
+// These render data the /stats endpoints ALREADY return but the screen
+// did not show yet — no new backend. `chat-turns/stats` carries
+// `finishReasonBreakdown` + `errorCodeBreakdown` (code -> count);
+// `plan-metrics/stats` carries `byCity` (per-city count/openRate/followRate).
+
+export interface BreakdownRow {
+    key: string;
+    count: number;
+}
+
+/**
+ * A `Record<code, count>` breakdown as ordered rows: highest count first,
+ * ties broken alphabetically by key (stable, deterministic order). An
+ * absent/empty record yields an empty list.
+ */
+export function breakdownToRows(record: Record<string, number> | undefined | null): BreakdownRow[] {
+    if (!record) return [];
+    return Object.entries(record)
+        .map(([key, count]) => ({ key, count }))
+        .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+}
+
+/** Per-city stats ordered by plan count desc, then city name asc. */
+export function sortCityStats(byCity: AdminPlanMetricsByCity[] | undefined | null): AdminPlanMetricsByCity[] {
+    if (!byCity) return [];
+    return [...byCity].sort((a, b) => b.count - a.count || a.city.localeCompare(b.city));
+}
+
 // ─── Load orchestration ──────────────────────────────────────────────
 
 /** Minimal shape of `src/lib/api.ts#api`, injected for testability. */

@@ -8,6 +8,7 @@ import {
     StyleSheet,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import LanguageToggle from './LanguageToggle';
 import { colors, fonts, spacing, borderRadius } from '../lib/theme';
 
 interface DashboardHeaderProps {
@@ -31,6 +32,7 @@ export default function DashboardHeader({ refreshing, isDesktop, onRefresh, onCr
                 resizeMode="contain"
             />
             <View style={styles.headerRight}>
+                <LanguageToggle />
                 <Pressable style={styles.analyticsBtn} onPress={onAnalyticsPress}>
                     <Text style={styles.analyticsBtnText}>Analytics</Text>
                 </Pressable>
