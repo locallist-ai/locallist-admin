@@ -167,6 +167,7 @@ export default function DashboardScreen() {
                     onRefresh={handleRefresh}
                     onCreatePress={handleCreatePress}
                     onAnalyticsPress={() => router.push('/analytics')}
+                    onBillingPress={() => router.push('/billing')}
                 />
 
                 {/* Segment control */}
