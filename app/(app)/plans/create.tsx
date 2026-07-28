@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { showAlert } from '../../../src/lib/dialogs';
 import { useRouter, Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { api } from '../../../src/lib/api';
 import type { PlanData } from '../../../src/types/plan';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
@@ -19,6 +20,7 @@ const PLAN_TYPES = ['foodie', 'culture', 'adventure', 'nightlife', 'wellness', '
 const DURATION_OPTIONS = [1, 2, 3, 4, 5] as const;
 
 export default function PlanCreateScreen() {
+    const { t } = useTranslation();
     const router = useRouter();
     const [saving, setSaving] = useState(false);
 
@@ -33,7 +35,7 @@ export default function PlanCreateScreen() {
 
     const handleCreate = async () => {
         if (!name.trim()) {
-            showAlert('Required', 'Plan name is required.');
+            showAlert(t('common.required'), t('planCreate.nameRequired'));
             return;
         }
 
@@ -55,10 +57,10 @@ export default function PlanCreateScreen() {
         setSaving(false);
 
         if (res.data) {
-            showAlert('Created', `Plan "${res.data.name}" created.`);
+            showAlert(t('placeCreate.createdTitle'), t('planCreate.createdMsg', { name: res.data.name }));
             router.replace(`/plans/${res.data.id}`);
         } else {
-            showAlert('Error', `Failed to create: ${res.error}`);
+            showAlert(t('common.error'), t('placeCreate.createFailed', { error: res.error ?? '' }));
         }
     };
 
@@ -68,24 +70,24 @@ export default function PlanCreateScreen() {
         <>
             <Stack.Screen
                 options={{
-                    title: 'Create Plan',
+                    title: t('nav.createPlan'),
                     headerStyle: { backgroundColor: colors.bgMain },
                     headerTintColor: colors.deepOcean,
                 }}
             />
             <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-                <Text style={styles.sectionTitle}>Plan Details</Text>
+                <Text style={styles.sectionTitle}>{t('plan.details')}</Text>
                 <View style={styles.section}>
-                    <FieldLabel label="Name *" />
+                    <FieldLabel label={t('planCreate.nameLabel')} />
                     <TextInput
                         style={styles.input}
                         value={name}
                         onChangeText={setName}
-                        placeholder="e.g. Foodie Weekend in Wynwood"
+                        placeholder={t('planCreate.namePlaceholder')}
                         placeholderTextColor={colors.textSecondary}
                     />
 
-                    <FieldLabel label="City" />
+                    <FieldLabel label={t('plan.city')} />
                     <TextInput
                         style={styles.input}
                         value={city}
@@ -93,22 +95,22 @@ export default function PlanCreateScreen() {
                         placeholderTextColor={colors.textSecondary}
                     />
 
-                    <FieldLabel label="Type" />
+                    <FieldLabel label={t('plan.type')} />
                     <View style={styles.chipRow}>
-                        {PLAN_TYPES.map((t) => (
+                        {PLAN_TYPES.map((planType) => (
                             <Pressable
-                                key={t}
-                                style={[styles.chip, type === t && styles.chipActive]}
-                                onPress={() => setType(t)}
+                                key={planType}
+                                style={[styles.chip, type === planType && styles.chipActive]}
+                                onPress={() => setType(planType)}
                             >
-                                <Text style={[styles.chipText, type === t && styles.chipTextActive]}>
-                                    {t}
+                                <Text style={[styles.chipText, type === planType && styles.chipTextActive]}>
+                                    {planType}
                                 </Text>
                             </Pressable>
                         ))}
                     </View>
 
-                    <FieldLabel label="Duration (days)" />
+                    <FieldLabel label={t('plan.duration')} />
                     <View style={styles.chipRow}>
                         {DURATION_OPTIONS.map((d) => (
                             <Pressable
@@ -123,33 +125,33 @@ export default function PlanCreateScreen() {
                         ))}
                     </View>
 
-                    <FieldLabel label="Description" />
+                    <FieldLabel label={t('plan.description')} />
                     <TextInput
                         style={[styles.input, styles.multilineInput]}
                         value={description}
                         onChangeText={setDescription}
-                        placeholder="What's this plan about?"
+                        placeholder={t('planCreate.descriptionPlaceholder')}
                         multiline
                         numberOfLines={3}
                         textAlignVertical="top"
                         placeholderTextColor={colors.textSecondary}
                     />
 
-                    <FieldLabel label="Cover Image URL" />
+                    <FieldLabel label={t('plan.coverImageUrl')} />
                     <TextInput
                         style={styles.input}
                         value={imageUrl}
                         onChangeText={setImageUrl}
-                        placeholder="https://..."
+                        placeholder={t('planCreate.imageUrlPlaceholder')}
                         placeholderTextColor={colors.textSecondary}
                         autoCapitalize="none"
                     />
                 </View>
 
-                <Text style={styles.sectionTitle}>Visibility</Text>
+                <Text style={styles.sectionTitle}>{t('plan.visibility')}</Text>
                 <View style={styles.section}>
                     <View style={styles.toggleRow}>
-                        <Text style={styles.toggleLabel}>Public</Text>
+                        <Text style={styles.toggleLabel}>{t('plansList.public')}</Text>
                         <Switch
                             value={isPublic}
                             onValueChange={setIsPublic}
@@ -157,7 +159,7 @@ export default function PlanCreateScreen() {
                         />
                     </View>
                     <View style={styles.toggleRow}>
-                        <Text style={styles.toggleLabel}>Showcase</Text>
+                        <Text style={styles.toggleLabel}>{t('plansList.showcase')}</Text>
                         <Switch
                             value={isShowcase}
                             onValueChange={setIsShowcase}
@@ -174,7 +176,7 @@ export default function PlanCreateScreen() {
                     {saving ? (
                         <ActivityIndicator color="#fff" size="small" />
                     ) : (
-                        <Text style={styles.createBtnText}>Create Plan</Text>
+                        <Text style={styles.createBtnText}>{t('nav.createPlan')}</Text>
                     )}
                 </Pressable>
 

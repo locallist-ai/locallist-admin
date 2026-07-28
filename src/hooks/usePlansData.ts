@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { showAlert } from '../lib/dialogs';
 import { api } from '../lib/api';
 import { buildPlansQuery, canLoadMore, PAGE_SIZE, type Mode } from '../lib/dashboardQueries';
@@ -10,6 +11,7 @@ import type { PlanData, PlansResponse } from '../types/plan';
  * unpublish (optimistic, reload on failure) and delete actions.
  */
 export function usePlansData({ mode }: { mode: Mode }) {
+    const { t } = useTranslation();
     const [plans, setPlans] = useState<PlanData[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -44,12 +46,12 @@ export function usePlansData({ mode }: { mode: Mode }) {
             }
             setTotal(res.data.total);
         } else if (res.error) {
-            showAlert('Error', `Failed to load plans: ${res.error}`);
+            showAlert(t('common.error'), t('plansList.loadFailed', { error: res.error }));
         }
 
         if (isInitial) setLoading(false);
         else setLoadingMore(false);
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         if (mode === 'plans') loadPlans();
@@ -67,22 +69,22 @@ export function usePlansData({ mode }: { mode: Mode }) {
         setPlans((prev) => prev.filter((p) => p.id !== planId));
         const res = await api(`/admin/plans/${planId}`, { method: 'PATCH', body: { isPublic: false } });
         if (res.error) {
-            showAlert('Error', `Failed to unpublish: ${res.error}`);
+            showAlert(t('common.error'), t('plansList.unpublishFailed', { error: res.error }));
             loadPlans();
         }
     };
 
     const deletePlan = (planId: string) => {
         showAlert(
-            'Delete Plan',
-            'This will permanently delete the plan. This cannot be undone.',
+            t('plansList.deleteTitle'),
+            t('plansList.deleteMsg'),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Delete', style: 'destructive', onPress: async () => {
+                    text: t('common.delete'), style: 'destructive', onPress: async () => {
                         const res = await api(`/admin/plans/${planId}`, { method: 'DELETE' });
                         if (res.error) {
-                            showAlert('Error', `Failed to delete: ${res.error}`);
+                            showAlert(t('common.error'), t('plansList.deleteFailed', { error: res.error }));
                         } else {
                             setPlans((prev) => prev.filter((p) => p.id !== planId));
                             setTotal((prev) => Math.max(0, prev - 1));

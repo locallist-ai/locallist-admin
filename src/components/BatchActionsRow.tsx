@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { showAlert } from '../lib/dialogs';
 import { api } from '../lib/api';
 import { colors, fonts, spacing, borderRadius } from '../lib/theme';
@@ -16,17 +17,18 @@ interface BatchActionsRowProps {
  * and opening-hours backfill, which are self-contained fire-and-report ops.
  */
 export default function BatchActionsRow({ translateDisabled, onTranslate }: BatchActionsRowProps) {
+    const { t } = useTranslation();
     const [reindexing, setReindexing] = useState(false);
     const [backfillingHours, setBackfillingHours] = useState(false);
 
     const handleReindex = () => {
         showAlert(
-            'Reindex Embeddings',
-            'This regenerates vector embeddings for all published places. Takes ~30s. Continue?',
+            t('placesList.reindexTitle'),
+            t('placesList.reindexMsg'),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Reindex',
+                    text: t('placesList.reindex'),
                     onPress: async () => {
                         setReindexing(true);
                         const res = await api<{ reindexed: number; failed: number; total: number }>(
@@ -35,9 +37,9 @@ export default function BatchActionsRow({ translateDisabled, onTranslate }: Batc
                         );
                         setReindexing(false);
                         if (res.data) {
-                            showAlert('Done', `Reindexed: ${res.data.reindexed}/${res.data.total}`);
+                            showAlert(t('common.done'), t('placesList.reindexDone', { done: String(res.data.reindexed), total: String(res.data.total) }));
                         } else {
-                            showAlert('Error', `Reindex failed: ${res.error}`);
+                            showAlert(t('common.error'), t('placesList.reindexFailed', { error: res.error ?? '' }));
                         }
                     },
                 },
@@ -47,12 +49,12 @@ export default function BatchActionsRow({ translateDisabled, onTranslate }: Batc
 
     const handleBackfillHours = () => {
         showAlert(
-            'Backfill Opening Hours',
-            'Fetches opening hours from Google for all places missing them. May take a while. Continue?',
+            t('placesList.backfillHoursTitle'),
+            t('placesList.backfillHoursMsg'),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Backfill',
+                    text: t('placesList.backfillHoursConfirm'),
                     onPress: async () => {
                         setBackfillingHours(true);
                         const res = await api<{ backfilled: number; failed: number; total: number }>(
@@ -61,9 +63,9 @@ export default function BatchActionsRow({ translateDisabled, onTranslate }: Batc
                         );
                         setBackfillingHours(false);
                         if (res.data) {
-                            showAlert('Done', `Backfilled: ${res.data.backfilled}/${res.data.total} (${res.data.failed} failed)`);
+                            showAlert(t('common.done'), t('placesList.backfillHoursDone', { done: String(res.data.backfilled), total: String(res.data.total), failed: String(res.data.failed) }));
                         } else {
-                            showAlert('Error', `Backfill failed: ${res.error}`);
+                            showAlert(t('common.error'), t('placesList.backfillHoursFailed', { error: res.error ?? '' }));
                         }
                     },
                 },
@@ -78,7 +80,7 @@ export default function BatchActionsRow({ translateDisabled, onTranslate }: Batc
                 onPress={onTranslate}
                 disabled={translateDisabled}
             >
-                <Text style={batchBtnStyles.batchTranslateBtnText}>Translate → ES</Text>
+                <Text style={batchBtnStyles.batchTranslateBtnText}>{t('placesList.translateEs')}</Text>
             </Pressable>
             <Pressable
                 style={[styles.reindexBtn, reindexing && { opacity: 0.5 }]}
@@ -87,7 +89,7 @@ export default function BatchActionsRow({ translateDisabled, onTranslate }: Batc
             >
                 {reindexing
                     ? <ActivityIndicator color={colors.sunsetOrange} size="small" />
-                    : <Text style={[batchBtnStyles.batchTranslateBtnText, { color: colors.sunsetOrange }]}>Reindex</Text>
+                    : <Text style={[batchBtnStyles.batchTranslateBtnText, { color: colors.sunsetOrange }]}>{t('placesList.reindex')}</Text>
                 }
             </Pressable>
             <Pressable
@@ -97,7 +99,7 @@ export default function BatchActionsRow({ translateDisabled, onTranslate }: Batc
             >
                 {backfillingHours
                     ? <ActivityIndicator color={colors.electricBlue} size="small" />
-                    : <Text style={[batchBtnStyles.batchTranslateBtnText, { color: colors.electricBlue }]}>Hours</Text>
+                    : <Text style={[batchBtnStyles.batchTranslateBtnText, { color: colors.electricBlue }]}>{t('placesList.hours')}</Text>
                 }
             </Pressable>
         </View>

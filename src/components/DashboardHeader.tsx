@@ -53,10 +53,10 @@ export default function DashboardHeader({ refreshing, isDesktop, onRefresh, onCr
                     }
                 </Pressable>
                 <Pressable style={styles.createBtn} onPress={onCreatePress}>
-                    <Text style={styles.createBtnText}>+ Create</Text>
+                    <Text style={styles.createBtnText}>{t('dashboard.create')}</Text>
                 </Pressable>
                 <Pressable onPress={signOut} style={styles.logoutBtn}>
-                    <Text style={styles.logoutText}>Logout</Text>
+                    <Text style={styles.logoutText}>{t('dashboard.logout')}</Text>
                 </Pressable>
             </View>
         </View>

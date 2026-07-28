@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { showAlert } from '../../../src/lib/dialogs';
 import { useRouter, Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { api } from '../../../src/lib/api';
 import type { GooglePlacePreview, GoogleSearchResponse, PlaceData } from '../../../src/types/place';
 import { CATEGORIES, getSubcategories, inferSubcategoryFromGoogleTypes } from '../../../src/lib/constants';
@@ -21,6 +22,7 @@ import { useTaxonomy } from '../../../src/hooks/useTaxonomy';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 
 export default function ImportGoogleScreen() {
+    const { t } = useTranslation();
     const router = useRouter();
     const [query, setQuery] = useState('');
     const [city, setCity] = useState('Miami');
@@ -54,7 +56,7 @@ export default function ImportGoogleScreen() {
     const handleSearch = async () => {
         const q = query.trim();
         if (!q) {
-            showAlert('Required', 'Enter a keyword to search.');
+            showAlert(t('common.required'), t('importGoogle.enterKeyword'));
             return;
         }
         setLoading(true);
@@ -74,7 +76,7 @@ export default function ImportGoogleScreen() {
         if (res.data) {
             setResults(res.data.results);
         } else {
-            showAlert('Error', res.error ?? 'Search failed. Check that the Google Places API key is configured.');
+            showAlert(t('common.error'), res.error ?? t('importGoogle.searchFailed'));
         }
     };
 
@@ -97,8 +99,8 @@ export default function ImportGoogleScreen() {
             const subs = subcategoryOptions(category);
             ActionSheetIOS.showActionSheetWithOptions(
                 {
-                    title: 'Subcategory',
-                    options: ['Cancel', 'No subcategory', ...subs.map((s) => s.label)],
+                    title: t('importGoogle.subcategory'),
+                    options: [t('common.cancel'), t('importGoogle.noSubcategory'), ...subs.map((s) => s.label)],
                     cancelButtonIndex: 0,
                 },
                 (idx) => {
@@ -120,7 +122,7 @@ export default function ImportGoogleScreen() {
     const handleImport = async () => {
         if (selected.size === 0) return;
         if (!category) {
-            showAlert('Required', 'Choose a category before importing.');
+            showAlert(t('common.required'), t('importGoogle.chooseCategory'));
             return;
         }
 
@@ -151,7 +153,7 @@ export default function ImportGoogleScreen() {
             });
 
         if (toImport.length === 0) {
-            showAlert('Nothing to import', 'All selected places are already in the library.');
+            showAlert(t('importGoogle.nothingTitle'), t('importGoogle.nothingMsg'));
             return;
         }
 
@@ -162,12 +164,12 @@ export default function ImportGoogleScreen() {
         if (res.data) {
             const { created, skipped, errors } = res.data as { created: number; skipped: number; errors: number };
             showAlert(
-                'Import complete',
-                `${created} added · ${skipped} skipped (already exists) · ${errors} errors`,
-                [{ text: 'Done', onPress: () => router.back() }]
+                t('importGoogle.completeTitle'),
+                t('importGoogle.completeMsg', { created: String(created), skipped: String(skipped), errors: String(errors) }),
+                [{ text: t('common.done'), onPress: () => router.back() }]
             );
         } else {
-            showAlert('Error', res.error ?? 'Import failed.');
+            showAlert(t('common.error'), res.error ?? t('importGoogle.importFailed'));
         }
     };
 
@@ -180,7 +182,7 @@ export default function ImportGoogleScreen() {
         <>
             <Stack.Screen
                 options={{
-                    title: 'Import from Google',
+                    title: t('nav.importGoogle'),
                     headerStyle: { backgroundColor: colors.bgMain },
                     headerTintColor: colors.deepOcean,
                 }}
@@ -188,24 +190,24 @@ export default function ImportGoogleScreen() {
             <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
                 {/* Search */}
-                <Text style={styles.sectionTitle}>Search</Text>
+                <Text style={styles.sectionTitle}>{t('importGoogle.search')}</Text>
                 <View style={styles.section}>
-                    <FieldLabel label="Keyword" />
+                    <FieldLabel label={t('importGoogle.keyword')} />
                     <TextInput
                         style={styles.input}
                         value={query}
                         onChangeText={setQuery}
-                        placeholder="e.g. ramen, rooftop bar, pilates studio"
+                        placeholder={t('importGoogle.keywordPlaceholder')}
                         placeholderTextColor={colors.textSecondary}
                         returnKeyType="search"
                         onSubmitEditing={handleSearch}
                     />
-                    <FieldLabel label="City" />
+                    <FieldLabel label={t('place.city')} />
                     <TextInput
                         style={styles.input}
                         value={city}
                         onChangeText={setCity}
-                        placeholder="Miami"
+                        placeholder={t('common.cityPlaceholder')}
                         placeholderTextColor={colors.textSecondary}
                         returnKeyType="done"
                     />
@@ -217,13 +219,13 @@ export default function ImportGoogleScreen() {
                         {loading ? (
                             <ActivityIndicator color="#fff" size="small" />
                         ) : (
-                            <Text style={styles.searchBtnText}>Search Google Places</Text>
+                            <Text style={styles.searchBtnText}>{t('importGoogle.searchGoogle')}</Text>
                         )}
                     </Pressable>
                 </View>
 
                 {/* Category */}
-                <Text style={styles.sectionTitle}>Category for import</Text>
+                <Text style={styles.sectionTitle}>{t('importGoogle.categoryForImport')}</Text>
                 <View style={styles.section}>
                     <View style={styles.chipRow}>
                         {CATEGORIES.map((cat) => (
@@ -245,8 +247,8 @@ export default function ImportGoogleScreen() {
                     <>
                         <Text style={styles.sectionTitle}>
                             {results.length > 0
-                                ? `${results.length} results - tap to select`
-                                : 'No results'}
+                                ? t('importGoogle.resultsCount', { count: results.length })
+                                : t('importGoogle.noResults')}
                         </Text>
                         {results.map((place) => {
                             const inferred = category
@@ -283,7 +285,7 @@ export default function ImportGoogleScreen() {
                             <ActivityIndicator color="#fff" size="small" />
                         ) : (
                             <Text style={styles.importBtnText}>
-                                {selectedCount > 0 ? `Import ${selectedCount} selected` : 'Select places to import'}
+                                {selectedCount > 0 ? t('importGoogle.importSelected', { count: selectedCount }) : t('importGoogle.selectToImport')}
                             </Text>
                         )}
                     </Pressable>
@@ -301,10 +303,10 @@ export default function ImportGoogleScreen() {
             >
                 <Pressable style={styles.pickerOverlay} onPress={() => setPickerTarget(null)}>
                     <Pressable style={styles.pickerCard} onPress={() => {}}>
-                        <Text style={styles.pickerTitle}>Subcategory</Text>
+                        <Text style={styles.pickerTitle}>{t('importGoogle.subcategory')}</Text>
                         <ScrollView style={styles.pickerList}>
                             <Pressable style={styles.pickerOption} onPress={() => handlePickerSelect(null)}>
-                                <Text style={styles.pickerOptionMuted}>No subcategory</Text>
+                                <Text style={styles.pickerOptionMuted}>{t('importGoogle.noSubcategory')}</Text>
                             </Pressable>
                             {(category ? subcategoryOptions(category) : []).map((sub) => (
                                 <Pressable
@@ -317,7 +319,7 @@ export default function ImportGoogleScreen() {
                             ))}
                         </ScrollView>
                         <Pressable style={styles.pickerCancel} onPress={() => setPickerTarget(null)}>
-                            <Text style={styles.pickerCancelText}>Cancel</Text>
+                            <Text style={styles.pickerCancelText}>{t('common.cancel')}</Text>
                         </Pressable>
                     </Pressable>
                 </Pressable>
@@ -339,6 +341,7 @@ function PlaceResultCard({
     suggestedSubcategory?: string | null;
     onEditSubcategory?: () => void;
 }) {
+    const { t } = useTranslation();
     const thumb = place.photos[0];
     return (
         <Pressable
@@ -359,7 +362,7 @@ function PlaceResultCard({
                     <Text style={styles.resultName} numberOfLines={1}>{place.name}</Text>
                     {place.existsInLib && (
                         <View style={styles.inLibBadge}>
-                            <Text style={styles.inLibBadgeText}>In library</Text>
+                            <Text style={styles.inLibBadgeText}>{t('importGoogle.inLibrary')}</Text>
                         </View>
                     )}
                 </View>
@@ -385,7 +388,7 @@ function PlaceResultCard({
                             onPress={(e) => { e.stopPropagation?.(); onEditSubcategory(); }}
                         >
                             <Text style={styles.subBadgeText}>
-                                {suggestedSubcategory ? `${suggestedSubcategory} ✎` : '+ subcategory'}
+                                {suggestedSubcategory ? `${suggestedSubcategory} ✎` : t('importGoogle.addSubcategory')}
                             </Text>
                         </Pressable>
                     )}

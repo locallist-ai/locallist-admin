@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, Pressable, ActivityIndicator } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { colors } from '../lib/theme';
 import { listStyles as styles } from './listStyles';
@@ -25,6 +26,7 @@ export default function PlansList({
     onUnpublish,
     onDelete,
 }: PlansListProps) {
+    const { t } = useTranslation();
     const router = useRouter();
 
     if (loading) {
@@ -39,7 +41,7 @@ export default function PlansList({
         <View style={styles.listContent}>
             {plans.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>No plans yet</Text>
+                    <Text style={styles.emptyText}>{t('plansList.noPlans')}</Text>
                 </View>
             ) : (
                 <>
@@ -57,11 +59,11 @@ export default function PlansList({
                                     <Text style={styles.listName} numberOfLines={1}>{item.name}</Text>
                                     <Text style={styles.listSub} numberOfLines={1}>
                                         {item.city} · {item.type}
-                                        {item.isShowcase ? ' · Showcase' : ''}
+                                        {item.isShowcase ? ` · ${t('plansList.showcase')}` : ''}
                                     </Text>
                                 </View>
                                 <View style={styles.planBadges}>
-                                    {item.isPublic && <Text style={styles.publicBadge}>Public</Text>}
+                                    {item.isPublic && <Text style={styles.publicBadge}>{t('plansList.public')}</Text>}
                                 </View>
                                 <Text style={styles.listChevron}>›</Text>
                             </Pressable>
@@ -71,14 +73,14 @@ export default function PlansList({
                                         style={[styles.actionBtnReject, styles.actionBtnBorderRight]}
                                         onPress={() => onUnpublish(item.id)}
                                     >
-                                        <Text style={styles.actionBtnRejectText}>Unpublish</Text>
+                                        <Text style={styles.actionBtnRejectText}>{t('plansList.unpublish')}</Text>
                                     </Pressable>
                                 )}
                                 <Pressable
                                     style={styles.actionBtnDelete}
                                     onPress={() => onDelete(item.id)}
                                 >
-                                    <Text style={styles.actionBtnDeleteText}>Delete</Text>
+                                    <Text style={styles.actionBtnDeleteText}>{t('common.delete')}</Text>
                                 </Pressable>
                             </View>
                         </View>
@@ -87,7 +89,7 @@ export default function PlansList({
                         <ActivityIndicator color={colors.electricBlue} style={{ paddingVertical: 16 }} />
                     ) : plans.length < total ? (
                         <Pressable style={styles.loadMoreBtn} onPress={onLoadMore}>
-                            <Text style={styles.loadMoreText}>Load More</Text>
+                            <Text style={styles.loadMoreText}>{t('common.loadMore')}</Text>
                         </Pressable>
                     ) : null}
                 </>

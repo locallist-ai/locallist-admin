@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, Pressable, ActivityIndicator } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import SwipeCard from './SwipeCard';
 import { colors } from '../lib/theme';
@@ -44,6 +45,7 @@ export default function PlacesList({
     onStatusChange,
     onDelete,
 }: PlacesListProps) {
+    const { t } = useTranslation();
     const router = useRouter();
 
     if (loading) {
@@ -59,9 +61,9 @@ export default function PlacesList({
             <View style={styles.deckContainer}>
                 {places.length === 0 ? (
                     <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyText}>All caught up!</Text>
+                        <Text style={styles.emptyText}>{t('placesList.allCaughtUp')}</Text>
                         <Pressable onPress={onReloadQueue} style={styles.reloadBtn}>
-                            <Text style={styles.reloadText}>Reload Queue</Text>
+                            <Text style={styles.reloadText}>{t('placesList.reloadQueue')}</Text>
                         </Pressable>
                     </View>
                 ) : (
@@ -91,7 +93,7 @@ export default function PlacesList({
             {places.length === 0 ? (
                 <View style={styles.emptyContainer}>
                     <Text style={styles.emptyText}>
-                        No {activeTab === 'published' ? 'published' : 'rejected'} places
+                        {activeTab === 'published' ? t('placesList.noPublished') : t('placesList.noRejected')}
                     </Text>
                 </View>
             ) : (
@@ -119,14 +121,14 @@ export default function PlacesList({
                                     style={styles.actionBtnQueue}
                                     onPress={() => onStatusChange(item.id, 'in_review')}
                                 >
-                                    <Text style={styles.actionBtnQueueText}>Queue</Text>
+                                    <Text style={styles.actionBtnQueueText}>{t('placesList.queue')}</Text>
                                 </Pressable>
                                 {activeTab === 'published' ? (
                                     <Pressable
                                         style={styles.actionBtnReject}
                                         onPress={() => onRejectStart(item.id)}
                                     >
-                                        <Text style={styles.actionBtnRejectText}>Reject</Text>
+                                        <Text style={styles.actionBtnRejectText}>{t('common.reject')}</Text>
                                     </Pressable>
                                 ) : (
                                     <>
@@ -134,13 +136,13 @@ export default function PlacesList({
                                             style={[styles.actionBtnPublish, styles.actionBtnBorderRight]}
                                             onPress={() => onStatusChange(item.id, 'published')}
                                         >
-                                            <Text style={styles.actionBtnPublishText}>Publish</Text>
+                                            <Text style={styles.actionBtnPublishText}>{t('common.publish')}</Text>
                                         </Pressable>
                                         <Pressable
                                             style={styles.actionBtnDelete}
                                             onPress={() => onDelete(item.id)}
                                         >
-                                            <Text style={styles.actionBtnDeleteText}>Delete</Text>
+                                            <Text style={styles.actionBtnDeleteText}>{t('common.delete')}</Text>
                                         </Pressable>
                                     </>
                                 )}
@@ -151,7 +153,7 @@ export default function PlacesList({
                         <ActivityIndicator color={colors.electricBlue} style={{ paddingVertical: 16 }} />
                     ) : places.length < total ? (
                         <Pressable style={styles.loadMoreBtn} onPress={onLoadMore}>
-                            <Text style={styles.loadMoreText}>Load More</Text>
+                            <Text style={styles.loadMoreText}>{t('common.loadMore')}</Text>
                         </Pressable>
                     ) : null}
                 </>

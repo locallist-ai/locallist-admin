@@ -11,6 +11,7 @@ import {
     Switch,
 } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 import { CATEGORIES, BEST_FOR } from '../../../src/lib/constants';
 import AddSubcategoryModal from '../../../src/components/AddSubcategoryModal';
@@ -20,6 +21,7 @@ const PRICE_RANGES = ['FREE', '$', '$$', '$$$', '$$$$'] as const;
 const BEST_TIMES = ['morning', 'lunch', 'afternoon', 'dinner', 'late_night'] as const;
 
 export default function PlaceEditScreen() {
+    const { t } = useTranslation();
     const { id } = useLocalSearchParams<{ id: string }>();
     const {
         place,
@@ -58,7 +60,7 @@ export default function PlaceEditScreen() {
     if (!place) {
         return (
             <View style={styles.loadingContainer}>
-                <Text style={{ color: colors.error, fontFamily: fonts.body }}>Place not found</Text>
+                <Text style={{ color: colors.error, fontFamily: fonts.body }}>{t('placeEdit.notFound')}</Text>
             </View>
         );
     }
@@ -67,7 +69,7 @@ export default function PlaceEditScreen() {
         <>
             <Stack.Screen
                 options={{
-                    title: form.name || 'Edit Place',
+                    title: form.name || t('nav.editPlace'),
                     headerStyle: { backgroundColor: colors.bgMain },
                     headerTintColor: colors.deepOcean,
                 }}
@@ -78,14 +80,14 @@ export default function PlaceEditScreen() {
                     <Image source={{ uri: form.photos[0] }} style={styles.heroImage} resizeMode="cover" />
                 ) : (
                     <View style={[styles.heroImage, { backgroundColor: colors.borderColor, alignItems: 'center', justifyContent: 'center' }]}>
-                        <Text style={{ color: colors.textSecondary, fontFamily: fonts.body }}>No photo</Text>
+                        <Text style={{ color: colors.textSecondary, fontFamily: fonts.body }}>{t('placeEdit.noPhoto')}</Text>
                     </View>
                 )}
 
                 {/* Section: Identity */}
-                <Text style={styles.sectionTitle}>Identity</Text>
+                <Text style={styles.sectionTitle}>{t('place.sectionIdentity')}</Text>
                 <View style={styles.section}>
-                    <FieldLabel label="Name" />
+                    <FieldLabel label={t('placeEdit.name')} />
                     <TextInput
                         style={styles.input}
                         value={form.name ?? ''}
@@ -93,7 +95,7 @@ export default function PlaceEditScreen() {
                         placeholderTextColor={colors.textSecondary}
                     />
 
-                    <FieldLabel label="Category" />
+                    <FieldLabel label={t('placeEdit.category')} />
                     <View style={styles.chipRow}>
                         {CATEGORIES.map((cat) => (
                             <Pressable
@@ -110,7 +112,7 @@ export default function PlaceEditScreen() {
                         ))}
                     </View>
 
-                    <FieldLabel label="Subcategories" />
+                    <FieldLabel label={t('place.subcategories')} />
                     {form.category ? (
                         <>
                             {(() => {
@@ -123,12 +125,12 @@ export default function PlaceEditScreen() {
                                     <>
                                         {legacyItems.length > 0 && (
                                             <Text style={styles.legacySubcategoryWarning}>
-                                                {`Legacy: "${legacyItems.join(', ')}". Pick canonical below.`}
+                                                {t('placeEdit.legacyWarning', { items: legacyItems.join(', ') })}
                                             </Text>
                                         )}
                                         {dynamicSubs.length === 0 && legacyItems.length === 0 && (
                                             <Text style={styles.subcategoryHint}>
-                                                {`No subcategories for ${form.category}. Tap "+ Add" to create one.`}
+                                                {t('placeEdit.noSubcategories', { category: form.category })}
                                             </Text>
                                         )}
                                         <View style={styles.chipRow}>
@@ -155,7 +157,7 @@ export default function PlaceEditScreen() {
                                                 style={[styles.chip, styles.chipAdd]}
                                                 onPress={() => setAddSubVisible(true)}
                                             >
-                                                <Text style={styles.chipAddText}>+ Add</Text>
+                                                <Text style={styles.chipAddText}>{t('placeEdit.add')}</Text>
                                             </Pressable>
                                         </View>
                                         <AddSubcategoryModal
@@ -170,10 +172,10 @@ export default function PlaceEditScreen() {
                             })()}
                         </>
                     ) : (
-                        <Text style={styles.subcategoryHint}>Select a category first</Text>
+                        <Text style={styles.subcategoryHint}>{t('place.selectCategoryFirst')}</Text>
                     )}
 
-                    <FieldLabel label="Why This Place" />
+                    <FieldLabel label={t('placeEdit.whyThisPlace')} />
                     <TextInput
                         style={[styles.input, styles.multilineInput]}
                         value={form.whyThisPlace ?? ''}
@@ -190,15 +192,15 @@ export default function PlaceEditScreen() {
                     >
                         {suggesting
                             ? <ActivityIndicator size="small" color={colors.textSecondary} />
-                            : <Text style={styles.suggestBtnText}>Suggest with AI</Text>
+                            : <Text style={styles.suggestBtnText}>{t('placeEdit.suggestAi')}</Text>
                         }
                     </Pressable>
                 </View>
 
                 {/* Section: Location */}
-                <Text style={styles.sectionTitle}>Location</Text>
+                <Text style={styles.sectionTitle}>{t('place.sectionLocation')}</Text>
                 <View style={styles.section}>
-                    <FieldLabel label="Neighborhood" />
+                    <FieldLabel label={t('place.neighborhood')} />
                     <TextInput
                         style={styles.input}
                         value={form.neighborhood ?? ''}
@@ -206,7 +208,7 @@ export default function PlaceEditScreen() {
                         placeholderTextColor={colors.textSecondary}
                     />
 
-                    <FieldLabel label="City" />
+                    <FieldLabel label={t('place.city')} />
                     <TextInput
                         style={styles.input}
                         value={form.city ?? ''}
@@ -216,7 +218,7 @@ export default function PlaceEditScreen() {
 
                     <View style={styles.row}>
                         <View style={styles.halfField}>
-                            <FieldLabel label="Latitude" />
+                            <FieldLabel label={t('place.latitude')} />
                             <TextInput
                                 style={styles.input}
                                 value={form.latitude?.toString() ?? ''}
@@ -226,7 +228,7 @@ export default function PlaceEditScreen() {
                             />
                         </View>
                         <View style={styles.halfField}>
-                            <FieldLabel label="Longitude" />
+                            <FieldLabel label={t('place.longitude')} />
                             <TextInput
                                 style={styles.input}
                                 value={form.longitude?.toString() ?? ''}
@@ -239,9 +241,9 @@ export default function PlaceEditScreen() {
                 </View>
 
                 {/* Section: Curation */}
-                <Text style={styles.sectionTitle}>Curation</Text>
+                <Text style={styles.sectionTitle}>{t('place.sectionCuration')}</Text>
                 <View style={styles.section}>
-                    <FieldLabel label="Best For" />
+                    <FieldLabel label={t('place.bestFor')} />
                     <View style={styles.chipRow}>
                         {BEST_FOR.map((tag) => {
                             const isActive = (form.bestFor ?? []).includes(tag);
@@ -267,7 +269,7 @@ export default function PlaceEditScreen() {
                             ))}
                     </View>
 
-                    <FieldLabel label="Best Time" />
+                    <FieldLabel label={t('place.bestTime')} />
                     <View style={styles.chipRow}>
                         {BEST_TIMES.map((time) => {
                             const isActive = (form.bestTimes ?? []).includes(time);
@@ -285,7 +287,7 @@ export default function PlaceEditScreen() {
                         })}
                     </View>
 
-                    <FieldLabel label="Price Range" />
+                    <FieldLabel label={t('place.priceRange')} />
                     <View style={styles.chipRow}>
                         {PRICE_RANGES.map((pr) => (
                             <Pressable
@@ -308,19 +310,19 @@ export default function PlaceEditScreen() {
                         ))}
                     </View>
 
-                    <FieldLabel label="Visit Duration (min), overrides category default" />
+                    <FieldLabel label={t('placeEdit.visitDuration')} />
                     <TextInput
                         style={styles.input}
                         value={form.visitDurationMin != null ? form.visitDurationMin.toString() : ''}
                         onChangeText={(v) => updateField('visitDurationMin', v ? parseInt(v, 10) || null : null)}
                         keyboardType="number-pad"
-                        placeholder="Leave blank to use category default"
+                        placeholder={t('placeEdit.visitDurationPlaceholder')}
                         placeholderTextColor={colors.textSecondary}
                     />
                 </View>
 
                 {/* Section: Photos */}
-                <Text style={styles.sectionTitle}>Photos</Text>
+                <Text style={styles.sectionTitle}>{t('place.sectionPhotos')}</Text>
                 <View style={styles.section}>
                     {(form.photos ?? []).map((url) => (
                         <View key={url} style={styles.photoRow}>
@@ -338,7 +340,7 @@ export default function PlaceEditScreen() {
                             style={[styles.input, { flex: 1 }]}
                             value={newPhotoUrl}
                             onChangeText={setNewPhotoUrl}
-                            placeholder="Paste photo URL..."
+                            placeholder={t('place.pastePhotoUrl')}
                             placeholderTextColor={colors.textSecondary}
                             onSubmitEditing={addPhoto}
                             returnKeyType="done"
@@ -353,7 +355,7 @@ export default function PlaceEditScreen() {
                 {/* Section: Translations (ES) — curated only */}
                 {place?.source === 'curated' && (
                     <>
-                        <Text style={styles.sectionTitle}>Translation ES</Text>
+                        <Text style={styles.sectionTitle}>{t('placeEdit.sectionTranslation')}</Text>
                         <View style={styles.section}>
                             <Pressable
                                 style={[styles.translateBtn, translating && styles.saveBtnDisabled]}
@@ -362,12 +364,12 @@ export default function PlaceEditScreen() {
                             >
                                 {translating
                                     ? <ActivityIndicator color="#fff" size="small" />
-                                    : <Text style={styles.translateBtnText}>Suggest ES Translation (Gemini)</Text>
+                                    : <Text style={styles.translateBtnText}>{t('placeEdit.suggestEsTranslation')}</Text>
                                 }
                             </Pressable>
 
                             <View style={styles.toggleRow}>
-                                <Text style={styles.toggleLabel}>Approved ES</Text>
+                                <Text style={styles.toggleLabel}>{t('placeEdit.approvedEs')}</Text>
                                 <Switch
                                     value={form.translationStatusEs === 'approved'}
                                     onValueChange={(v) => updateField('translationStatusEs', v ? 'approved' : 'draft')}
@@ -375,7 +377,7 @@ export default function PlaceEditScreen() {
                                 />
                             </View>
 
-                            <FieldLabel label="Name (ES)" />
+                            <FieldLabel label={t('placeEdit.nameEs')} />
                             <TextInput
                                 style={styles.input}
                                 value={form.nameEs ?? ''}
@@ -384,7 +386,7 @@ export default function PlaceEditScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
 
-                            <FieldLabel label="Why This Place (ES)" />
+                            <FieldLabel label={t('placeEdit.whyThisPlaceEs')} />
                             <TextInput
                                 style={[styles.input, styles.multilineInput]}
                                 value={form.whyThisPlaceEs ?? ''}
@@ -394,7 +396,7 @@ export default function PlaceEditScreen() {
                                 multiline numberOfLines={3} textAlignVertical="top"
                             />
 
-                            <FieldLabel label="Best Time (ES), comma separated" />
+                            <FieldLabel label={t('placeEdit.bestTimeEs')} />
                             <TextInput
                                 style={styles.input}
                                 value={form.bestTimesEs?.join(', ') ?? ''}
@@ -403,7 +405,7 @@ export default function PlaceEditScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
 
-                            <FieldLabel label="Neighborhood (ES)" />
+                            <FieldLabel label={t('placeEdit.neighborhoodEs')} />
                             <TextInput
                                 style={styles.input}
                                 value={form.neighborhoodEs ?? ''}
@@ -412,7 +414,7 @@ export default function PlaceEditScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
 
-                            <FieldLabel label="Subcategories (ES), comma separated" />
+                            <FieldLabel label={t('placeEdit.subcategoriesEs')} />
                             <TextInput
                                 style={styles.input}
                                 value={form.subcategoriesEs?.join(', ') ?? ''}
@@ -421,7 +423,7 @@ export default function PlaceEditScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
 
-                            <FieldLabel label="Best For (ES), comma separated" />
+                            <FieldLabel label={t('placeEdit.bestForEs')} />
                             <TextInput
                                 style={styles.input}
                                 value={form.bestForEs?.join(', ') ?? ''}
@@ -430,7 +432,7 @@ export default function PlaceEditScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
 
-                            <FieldLabel label="Suitable For (ES), comma separated" />
+                            <FieldLabel label={t('placeEdit.suitableForEs')} />
                             <TextInput
                                 style={styles.input}
                                 value={form.suitableForEs?.join(', ') ?? ''}
@@ -443,15 +445,15 @@ export default function PlaceEditScreen() {
                 )}
 
                 {/* Section: Metadata (read-only) */}
-                <Text style={styles.sectionTitle}>Metadata</Text>
+                <Text style={styles.sectionTitle}>{t('placeEdit.sectionMetadata')}</Text>
                 <View style={styles.section}>
-                    <MetadataRow label="Status" value={place.status} />
-                    <MetadataRow label="Google Place ID" value={place.googlePlaceId} />
-                    <MetadataRow label="Google Rating" value={place.googleRating?.toString()} />
-                    <MetadataRow label="Review Count" value={place.googleReviewCount?.toString()} />
-                    <MetadataRow label="Source" value={place.source} />
-                    <MetadataRow label="AI Vibe Score" value={place.aiVibeScore?.toString()} />
-                    <MetadataRow label="Created" value={place.createdAt ? new Date(place.createdAt).toLocaleDateString() : undefined} />
+                    <MetadataRow label={t('placeEdit.metaStatus')} value={place.status} />
+                    <MetadataRow label={t('placeEdit.metaGooglePlaceId')} value={place.googlePlaceId} />
+                    <MetadataRow label={t('placeEdit.metaGoogleRating')} value={place.googleRating?.toString()} />
+                    <MetadataRow label={t('placeEdit.metaReviewCount')} value={place.googleReviewCount?.toString()} />
+                    <MetadataRow label={t('placeEdit.metaSource')} value={place.source} />
+                    <MetadataRow label={t('placeEdit.metaAiVibeScore')} value={place.aiVibeScore?.toString()} />
+                    <MetadataRow label={t('placeEdit.metaCreated')} value={place.createdAt ? new Date(place.createdAt).toLocaleDateString() : undefined} />
                 </View>
 
                 {/* Save button */}
@@ -464,7 +466,7 @@ export default function PlaceEditScreen() {
                         <ActivityIndicator color="#fff" size="small" />
                     ) : (
                         <Text style={styles.saveBtnText}>
-                            {hasDirty ? 'Save Changes' : 'No Changes'}
+                            {hasDirty ? t('common.saveChanges') : t('common.noChanges')}
                         </Text>
                     )}
                 </Pressable>
@@ -480,10 +482,11 @@ function FieldLabel({ label }: { label: string }) {
 }
 
 function MetadataRow({ label, value }: { label: string; value?: string | null }) {
+    const { t } = useTranslation();
     return (
         <View style={styles.metaRow}>
             <Text style={styles.metaLabel}>{label}</Text>
-            <Text style={styles.metaValue}>{value ?? 'N/A'}</Text>
+            <Text style={styles.metaValue}>{value ?? t('common.na')}</Text>
         </View>
     );
 }

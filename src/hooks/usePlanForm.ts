@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { showAlert } from '../lib/dialogs';
 import { api } from '../lib/api';
 import { MAX_STOPS_PER_DAY } from '../lib/constants';
@@ -25,6 +26,7 @@ import {
  */
 export function usePlanForm(id: string) {
     const router = useRouter();
+    const { t } = useTranslation();
 
     const [plan, setPlan] = useState<PlanData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -59,10 +61,10 @@ export function usePlanForm(id: string) {
             setStops(loaded);
             originalStopsRef.current = serializeStops(loaded);
         } else {
-            showAlert('Error', `Failed to load plan: ${res.error}`);
+            showAlert(t('common.error'), t('planEdit.loadFailed', { error: res.error ?? '' }));
         }
         setLoading(false);
-    }, [id]);
+    }, [id, t]);
 
     useEffect(() => { loadPlan(); }, [loadPlan]);
 
@@ -78,7 +80,7 @@ export function usePlanForm(id: string) {
         const changed = stopsChanged();
 
         if (Object.keys(metaDirty).length === 0 && !changed) {
-            showAlert('No changes', 'Nothing to save.');
+            showAlert(t('common.noChangesTitle'), t('common.nothingToSave'));
             return;
         }
 
@@ -91,22 +93,22 @@ export function usePlanForm(id: string) {
         setSaving(false);
 
         if (outcome.status === 'error') {
-            showAlert('Error', `Failed to update plan: ${outcome.message}`);
+            showAlert(t('common.error'), t('planEdit.updateFailed', { error: outcome.message ?? '' }));
             return;
         }
 
-        showAlert('Saved', 'Plan updated successfully.');
+        showAlert(t('common.saved'), t('planEdit.savedMsg'));
         await loadPlan();
     };
 
     const handleDelete = () => {
-        showAlert('Delete Plan', 'Are you sure? This cannot be undone.', [
-            { text: 'Cancel', style: 'cancel' },
+        showAlert(t('planEdit.deletePlan'), t('planEdit.deleteMsg'), [
+            { text: t('common.cancel'), style: 'cancel' },
             {
-                text: 'Delete', style: 'destructive', onPress: async () => {
+                text: t('common.delete'), style: 'destructive', onPress: async () => {
                     const res = await api(`/admin/plans/${id}`, { method: 'DELETE' });
                     if (res.error) {
-                        showAlert('Error', `Failed to delete: ${res.error}`);
+                        showAlert(t('common.error'), t('planEdit.deleteFailed', { error: res.error ?? '' }));
                     } else {
                         router.back();
                     }
@@ -127,7 +129,7 @@ export function usePlanForm(id: string) {
                 descriptionEs: res.data!.descriptionEs ?? f.descriptionEs,
             }));
         } else {
-            showAlert('Error', `Translation failed: ${res.error}`);
+            showAlert(t('common.error'), t('placeEdit.translationFailed', { error: res.error ?? '' }));
         }
     };
 
@@ -145,7 +147,7 @@ export function usePlanForm(id: string) {
             MAX_STOPS_PER_DAY,
         );
         if (!result.added) {
-            showAlert('Limit reached', `Maximum ${MAX_STOPS_PER_DAY} places per day.`);
+            showAlert(t('planEdit.limitTitle'), t('planEdit.limitMsg', { count: MAX_STOPS_PER_DAY }));
             return;
         }
         setStops(result.stops);

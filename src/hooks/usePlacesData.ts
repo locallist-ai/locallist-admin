@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { showAlert } from '../lib/dialogs';
 import { api } from '../lib/api';
 import { withFlag } from '../lib/asyncFlag';
@@ -30,6 +31,7 @@ interface UsePlacesDataOptions {
  * delete) with rollback on API failure.
  */
 export function usePlacesData({ mode, city, category, search }: UsePlacesDataOptions) {
+    const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState<StatusTab>('in_review');
     const [places, setPlaces] = useState<PlaceData[]>([]);
     const [total, setTotal] = useState(0);
@@ -79,12 +81,12 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
                 setCounts((prev) => ({ ...prev, [status]: res.data!.total }));
             }
         } else if (res.error) {
-            showAlert('Error', `Failed to load places: ${res.error}`);
+            showAlert(t('common.error'), t('placesList.loadFailed', { error: res.error }));
         }
 
         if (isInitial) setLoading(false);
         else setLoadingMore(false);
-    }, [city, category, search]);
+    }, [city, category, search, t]);
 
     const loadCounts = useCallback(() => {
         // While searching, the list shows matches but badges keep global counts.
@@ -128,7 +130,7 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
 
         if (res.error) {
             if (removed) setPlaces((prev) => restoreAt(prev, removed, index));
-            showAlert('Error', `Failed to approve: ${res.error}`);
+            showAlert(t('common.error'), t('placesList.approveFailed', { error: res.error }));
         } else {
             setCounts((prev) => shiftCount(prev, 'in_review', 'published'));
         }
@@ -147,7 +149,7 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
 
         if (res.error) {
             setPlaces((prev) => restoreAt(prev.filter((p) => p.id !== placeId), removed, index));
-            showAlert('Error', `Failed to postpone: ${res.error}`);
+            showAlert(t('common.error'), t('placesList.postponeFailed', { error: res.error }));
         }
     };
 
@@ -163,7 +165,7 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
 
         if (res.error) {
             if (removed) setPlaces((prev) => restoreAt(prev, removed, index));
-            showAlert('Error', `Failed to update: ${res.error}`);
+            showAlert(t('common.error'), t('placesList.statusFailed', { error: res.error }));
         } else {
             // Via ref: the PATCH may resolve after a tab switch and the
             // closure's activeTab would decrement the wrong badge.
@@ -182,7 +184,7 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
 
         if (res.error) {
             if (removed) setPlaces((prev) => restoreAt(prev, removed, index));
-            showAlert('Error', `Failed to reject: ${res.error}`);
+            showAlert(t('common.error'), t('placesList.rejectFailed', { error: res.error }));
         } else {
             setCounts((prev) => shiftCount(prev, 'in_review', 'rejected'));
         }
@@ -190,17 +192,17 @@ export function usePlacesData({ mode, city, category, search }: UsePlacesDataOpt
 
     const deletePlace = (placeId: string) => {
         showAlert(
-            'Delete Place',
-            'This will permanently delete the place. This cannot be undone.',
+            t('placesList.deleteTitle'),
+            t('placesList.deleteMsg'),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Delete', style: 'destructive', onPress: async () => {
+                    text: t('common.delete'), style: 'destructive', onPress: async () => {
                         const res = await withFlag(setActionLoading, () =>
                             api(`/admin/places/${placeId}?hard=true`, { method: 'DELETE' }));
 
                         if (res.error) {
-                            showAlert('Error', (res.errorBody as { error?: string } | null)?.error ?? res.error);
+                            showAlert(t('common.error'), (res.errorBody as { error?: string } | null)?.error ?? res.error);
                         } else {
                             setPlaces((prev) => prev.filter((p) => p.id !== placeId));
                             setCounts((prev) => shiftCount(prev, activeTabRef.current, null));

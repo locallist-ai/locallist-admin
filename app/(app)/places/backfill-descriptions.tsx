@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { showAlert } from '../../../src/lib/dialogs';
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { api } from '../../../src/lib/api';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 
@@ -31,6 +32,7 @@ interface RunResult {
 type Result = DryRunResult | RunResult;
 
 export default function BackfillDescriptionsScreen() {
+    const { t } = useTranslation();
     const [limit, setLimit] = useState('200');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<Result | null>(null);
@@ -48,17 +50,17 @@ export default function BackfillDescriptionsScreen() {
         if (res.data) {
             setResult(res.data);
         } else {
-            showAlert('Error', res.error ?? 'Request failed.');
+            showAlert(t('common.error'), res.error ?? t('backfill.requestFailed'));
         }
     };
 
     const handleRun = () => {
         showAlert(
-            'Run backfill',
-            `This will fetch descriptions for up to ${parsedLimit} places and write to the database. Continue?`,
+            t('backfill.runBackfill'),
+            t('backfill.runMsg', { count: parsedLimit }),
             [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Run', style: 'destructive', onPress: runBackfill },
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('backfill.run'), style: 'destructive', onPress: runBackfill },
             ],
         );
     };
@@ -74,7 +76,7 @@ export default function BackfillDescriptionsScreen() {
         if (res.data) {
             setResult(res.data);
         } else {
-            showAlert('Error', res.error ?? 'Request failed.');
+            showAlert(t('common.error'), res.error ?? t('backfill.requestFailed'));
         }
     };
 
@@ -82,26 +84,26 @@ export default function BackfillDescriptionsScreen() {
         <>
             <Stack.Screen
                 options={{
-                    title: 'Backfill descriptions',
+                    title: t('dashboard.backfillDescriptions'),
                     headerStyle: { backgroundColor: colors.bgMain },
                     headerTintColor: colors.deepOcean,
                 }}
             />
             <ScrollView style={styles.container} contentContainerStyle={styles.content}>
 
-                <Text style={styles.sectionTitle}>How it works</Text>
+                <Text style={styles.sectionTitle}>{t('backfill.howItWorks')}</Text>
                 <View style={styles.section}>
                     <Text style={styles.bodyText}>
-                        For every place whose description is still the Google import placeholder, this tool fetches the editorial text from Google Places. If Google has no editorial, it falls back to Gemini.
+                        {t('backfill.howItWorksBody')}
                     </Text>
                     <Text style={[styles.bodyText, styles.bodyTextMuted]}>
-                        Rejected places are skipped. Run dry first to see the count before writing.
+                        {t('backfill.howItWorksNote')}
                     </Text>
                 </View>
 
-                <Text style={styles.sectionTitle}>Options</Text>
+                <Text style={styles.sectionTitle}>{t('backfill.options')}</Text>
                 <View style={styles.section}>
-                    <Text style={styles.fieldLabel}>Limit (1–200)</Text>
+                    <Text style={styles.fieldLabel}>{t('backfill.limitLabel')}</Text>
                     <TextInput
                         style={styles.input}
                         value={limit}
@@ -120,7 +122,7 @@ export default function BackfillDescriptionsScreen() {
                     >
                         {loading
                             ? <ActivityIndicator color={colors.electricBlue} size="small" />
-                            : <Text style={styles.dryRunBtnText}>Dry run</Text>
+                            : <Text style={styles.dryRunBtnText}>{t('backfill.dryRun')}</Text>
                         }
                     </Pressable>
                     <Pressable
@@ -128,26 +130,26 @@ export default function BackfillDescriptionsScreen() {
                         onPress={handleRun}
                         disabled={loading}
                     >
-                        <Text style={styles.runBtnText}>Run backfill</Text>
+                        <Text style={styles.runBtnText}>{t('backfill.runBackfill')}</Text>
                     </Pressable>
                 </View>
 
                 {result && (
                     <>
-                        <Text style={styles.sectionTitle}>Result</Text>
+                        <Text style={styles.sectionTitle}>{t('backfill.result')}</Text>
                         <View style={styles.resultBox}>
-                            <ResultRow label="Candidates" value={result.candidates} />
+                            <ResultRow label={t('backfill.candidates')} value={result.candidates} />
                             {result.dryRun ? (
                                 <>
-                                    <ResultRow label="Would fetch from Google" value={(result as DryRunResult).wouldFetchGoogle} color={colors.successEmerald} />
-                                    <ResultRow label="Would fallback to Gemini" value={(result as DryRunResult).wouldFallbackGemini} color={colors.electricBlue} />
-                                    <Text style={styles.dryRunNote}>Dry run. No changes written.</Text>
+                                    <ResultRow label={t('backfill.wouldFetchGoogle')} value={(result as DryRunResult).wouldFetchGoogle} color={colors.successEmerald} />
+                                    <ResultRow label={t('backfill.wouldFallbackGemini')} value={(result as DryRunResult).wouldFallbackGemini} color={colors.electricBlue} />
+                                    <Text style={styles.dryRunNote}>{t('backfill.dryRunNote')}</Text>
                                 </>
                             ) : (
                                 <>
-                                    <ResultRow label="Filled from Google" value={(result as RunResult).googleFilled} color={colors.successEmerald} />
-                                    <ResultRow label="Filled from Gemini" value={(result as RunResult).geminiFilled} color={colors.electricBlue} />
-                                    <ResultRow label="Failed (no source)" value={(result as RunResult).failed} color={colors.error} />
+                                    <ResultRow label={t('backfill.filledGoogle')} value={(result as RunResult).googleFilled} color={colors.successEmerald} />
+                                    <ResultRow label={t('backfill.filledGemini')} value={(result as RunResult).geminiFilled} color={colors.electricBlue} />
+                                    <ResultRow label={t('backfill.failedNoSource')} value={(result as RunResult).failed} color={colors.error} />
                                 </>
                             )}
                         </View>

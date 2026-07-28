@@ -10,6 +10,7 @@ import {
     Switch,
 } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import PlaceSearch from '../../../src/components/PlaceSearch';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
 import { usePlanForm } from '../../../src/hooks/usePlanForm';
@@ -19,6 +20,7 @@ const DURATION_OPTIONS = [1, 2, 3, 4, 5] as const;
 const TIME_BLOCKS = ['morning', 'lunch', 'afternoon', 'dinner', 'late_night'] as const;
 
 export default function PlanEditScreen() {
+    const { t } = useTranslation();
     const { id } = useLocalSearchParams<{ id: string }>();
     const {
         plan,
@@ -54,7 +56,7 @@ export default function PlanEditScreen() {
     if (!plan) {
         return (
             <View style={styles.loadingContainer}>
-                <Text style={{ color: colors.error, fontFamily: fonts.body }}>Plan not found</Text>
+                <Text style={{ color: colors.error, fontFamily: fonts.body }}>{t('planEdit.notFound')}</Text>
             </View>
         );
     }
@@ -63,16 +65,16 @@ export default function PlanEditScreen() {
         <>
             <Stack.Screen
                 options={{
-                    title: form.name || 'Edit Plan',
+                    title: form.name || t('nav.editPlan'),
                     headerStyle: { backgroundColor: colors.bgMain },
                     headerTintColor: colors.deepOcean,
                 }}
             />
             <ScrollView style={styles.container} contentContainerStyle={styles.content}>
                 {/* Metadata */}
-                <Text style={styles.sectionTitle}>Plan Details</Text>
+                <Text style={styles.sectionTitle}>{t('plan.details')}</Text>
                 <View style={styles.section}>
-                    <FieldLabel label="Name" />
+                    <FieldLabel label={t('plan.name')} />
                     <TextInput
                         style={styles.input}
                         value={form.name}
@@ -80,7 +82,7 @@ export default function PlanEditScreen() {
                         placeholderTextColor={colors.textSecondary}
                     />
 
-                    <FieldLabel label="City" />
+                    <FieldLabel label={t('plan.city')} />
                     <TextInput
                         style={styles.input}
                         value={form.city}
@@ -88,20 +90,20 @@ export default function PlanEditScreen() {
                         placeholderTextColor={colors.textSecondary}
                     />
 
-                    <FieldLabel label="Type" />
+                    <FieldLabel label={t('plan.type')} />
                     <View style={styles.chipRow}>
-                        {PLAN_TYPES.map((t) => (
+                        {PLAN_TYPES.map((planType) => (
                             <Pressable
-                                key={t}
-                                style={[styles.chip, form.type === t && styles.chipActive]}
-                                onPress={() => setField('type', t)}
+                                key={planType}
+                                style={[styles.chip, form.type === planType && styles.chipActive]}
+                                onPress={() => setField('type', planType)}
                             >
-                                <Text style={[styles.chipText, form.type === t && styles.chipTextActive]}>{t}</Text>
+                                <Text style={[styles.chipText, form.type === planType && styles.chipTextActive]}>{planType}</Text>
                             </Pressable>
                         ))}
                     </View>
 
-                    <FieldLabel label="Duration (days)" />
+                    <FieldLabel label={t('plan.duration')} />
                     <View style={styles.chipRow}>
                         {DURATION_OPTIONS.map((d) => (
                             <Pressable
@@ -114,7 +116,7 @@ export default function PlanEditScreen() {
                         ))}
                     </View>
 
-                    <FieldLabel label="Description" />
+                    <FieldLabel label={t('plan.description')} />
                     <TextInput
                         style={[styles.input, styles.multilineInput]}
                         value={form.description}
@@ -123,7 +125,7 @@ export default function PlanEditScreen() {
                         placeholderTextColor={colors.textSecondary}
                     />
 
-                    <FieldLabel label="Cover Image URL" />
+                    <FieldLabel label={t('plan.coverImageUrl')} />
                     <TextInput
                         style={styles.input}
                         value={form.imageUrl}
@@ -133,10 +135,10 @@ export default function PlanEditScreen() {
                     />
                 </View>
 
-                <Text style={styles.sectionTitle}>Visibility</Text>
+                <Text style={styles.sectionTitle}>{t('plan.visibility')}</Text>
                 <View style={styles.section}>
                     <View style={styles.toggleRow}>
-                        <Text style={styles.toggleLabel}>Public</Text>
+                        <Text style={styles.toggleLabel}>{t('plansList.public')}</Text>
                         <Switch
                             value={form.isPublic}
                             onValueChange={(v) => setField('isPublic', v)}
@@ -144,7 +146,7 @@ export default function PlanEditScreen() {
                         />
                     </View>
                     <View style={styles.toggleRow}>
-                        <Text style={styles.toggleLabel}>Showcase</Text>
+                        <Text style={styles.toggleLabel}>{t('plansList.showcase')}</Text>
                         <Switch
                             value={form.isShowcase}
                             onValueChange={(v) => setField('isShowcase', v)}
@@ -156,7 +158,7 @@ export default function PlanEditScreen() {
                 {/* Translations (ES) — curated plans only */}
                 {plan?.source === 'curated' && (
                     <>
-                        <Text style={styles.sectionTitle}>Translation ES</Text>
+                        <Text style={styles.sectionTitle}>{t('placeEdit.sectionTranslation')}</Text>
                         <View style={styles.section}>
                             <Pressable
                                 style={[styles.translateBtn, translating && { opacity: 0.5 }]}
@@ -165,12 +167,12 @@ export default function PlanEditScreen() {
                             >
                                 {translating
                                     ? <ActivityIndicator color="#fff" size="small" />
-                                    : <Text style={styles.translateBtnText}>Suggest ES Translation (Gemini)</Text>
+                                    : <Text style={styles.translateBtnText}>{t('placeEdit.suggestEsTranslation')}</Text>
                                 }
                             </Pressable>
 
                             <View style={styles.toggleRow}>
-                                <Text style={styles.toggleLabel}>Approved ES</Text>
+                                <Text style={styles.toggleLabel}>{t('placeEdit.approvedEs')}</Text>
                                 <Switch
                                     value={form.translationStatusEs === 'approved'}
                                     onValueChange={(v) => setField('translationStatusEs', v ? 'approved' : 'draft')}
@@ -178,7 +180,7 @@ export default function PlanEditScreen() {
                                 />
                             </View>
 
-                            <FieldLabel label="Name (ES)" />
+                            <FieldLabel label={t('placeEdit.nameEs')} />
                             <TextInput
                                 style={styles.input}
                                 value={form.nameEs ?? ''}
@@ -187,7 +189,7 @@ export default function PlanEditScreen() {
                                 placeholderTextColor={colors.textSecondary}
                             />
 
-                            <FieldLabel label="Description (ES)" />
+                            <FieldLabel label={t('planEdit.descriptionEs')} />
                             <TextInput
                                 style={[styles.input, styles.multilineInput]}
                                 value={form.descriptionEs ?? ''}
@@ -201,7 +203,7 @@ export default function PlanEditScreen() {
                 )}
 
                 {/* Stops by day */}
-                <Text style={styles.sectionTitle}>Stops</Text>
+                <Text style={styles.sectionTitle}>{t('planEdit.stops')}</Text>
                 {Array.from({ length: form.durationDays }, (_, i) => i + 1).map(day => {
                     const dayStops = stops
                         .filter(s => s.dayNumber === day)
@@ -209,9 +211,9 @@ export default function PlanEditScreen() {
 
                     return (
                         <View key={day} style={styles.daySection}>
-                            <Text style={styles.dayTitle}>Day {day}</Text>
+                            <Text style={styles.dayTitle}>{t('planEdit.day', { day: String(day) })}</Text>
                             {dayStops.length === 0 ? (
-                                <Text style={styles.emptyDay}>No stops yet</Text>
+                                <Text style={styles.emptyDay}>{t('planEdit.noStops')}</Text>
                             ) : (
                                 dayStops.map((stop) => (
                                     <View key={`${stop.placeId}-${stop.orderIndex}`} style={styles.stopItem}>
@@ -242,12 +244,12 @@ export default function PlanEditScreen() {
                 })}
 
                 {/* Add stop */}
-                <Text style={styles.sectionTitle}>Add Stop</Text>
+                <Text style={styles.sectionTitle}>{t('planEdit.addStop')}</Text>
                 <View style={styles.section}>
-                    <FieldLabel label="Search Place" />
+                    <FieldLabel label={t('planEdit.searchPlace')} />
                     <PlaceSearch onSelect={handleAddStop} />
 
-                    <FieldLabel label="Day" />
+                    <FieldLabel label={t('planEdit.dayLabel')} />
                     <View style={styles.chipRow}>
                         {Array.from({ length: form.durationDays }, (_, i) => i + 1).map(d => (
                             <Pressable
@@ -260,7 +262,7 @@ export default function PlanEditScreen() {
                         ))}
                     </View>
 
-                    <FieldLabel label="Time Block" />
+                    <FieldLabel label={t('planEdit.timeBlock')} />
                     <View style={styles.chipRow}>
                         {TIME_BLOCKS.map(tb => (
                             <Pressable
@@ -273,12 +275,12 @@ export default function PlanEditScreen() {
                         ))}
                     </View>
 
-                    <FieldLabel label="Duration (min)" />
+                    <FieldLabel label={t('planEdit.durationMin')} />
                     <TextInput
                         style={styles.input}
                         value={addDuration}
                         onChangeText={setAddDuration}
-                        placeholder="e.g. 45"
+                        placeholder={t('planEdit.durationMinPlaceholder')}
                         keyboardType="number-pad"
                         placeholderTextColor={colors.textSecondary}
                     />
@@ -294,14 +296,14 @@ export default function PlanEditScreen() {
                         <ActivityIndicator color="#fff" size="small" />
                     ) : (
                         <Text style={styles.saveBtnText}>
-                            {hasChanges ? 'Save Changes' : 'No Changes'}
+                            {hasChanges ? t('common.saveChanges') : t('common.noChanges')}
                         </Text>
                     )}
                 </Pressable>
 
                 {/* Delete */}
                 <Pressable style={styles.deleteBtn} onPress={handleDelete}>
-                    <Text style={styles.deleteBtnText}>Delete Plan</Text>
+                    <Text style={styles.deleteBtnText}>{t('planEdit.deletePlan')}</Text>
                 </Pressable>
 
                 <View style={{ height: 40 }} />

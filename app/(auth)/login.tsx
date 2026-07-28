@@ -5,6 +5,7 @@ import {
     signInWithPopup,
     GoogleAuthProvider,
 } from 'firebase/auth';
+import { useTranslation } from 'react-i18next';
 import { getFirebaseAuth } from '../../src/lib/firebase';
 import { colors, fonts, spacing, borderRadius } from '../../src/lib/theme';
 
@@ -16,6 +17,7 @@ if (Platform.OS !== 'web') {
 }
 
 export default function LoginScreen() {
+    const { t } = useTranslation();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +46,7 @@ export default function LoginScreen() {
                 // Client-side domain check (UX only — backend enforces via AdminAuthorizationFilter)
                 if (!result.user.email?.endsWith('@locallist.ai')) {
                     await auth.signOut();
-                    throw new Error('Please sign in with a @locallist.ai account.');
+                    throw new Error(t('login.domainError'));
                 }
             } else {
                 // Mobile: Google Sign-In SDK → Firebase credential
@@ -52,13 +54,13 @@ export default function LoginScreen() {
                 const userInfo = await GoogleSignin.signIn();
                 const idToken = userInfo.data?.idToken;
 
-                if (!idToken) throw new Error('No ID token obtained from Google');
+                if (!idToken) throw new Error(t('login.noIdToken'));
 
                 // Client-side domain check (UX only)
                 const email = userInfo.data?.user.email;
                 if (!email?.endsWith('@locallist.ai')) {
                     await GoogleSignin.signOut();
-                    throw new Error('Please sign in with a @locallist.ai account.');
+                    throw new Error(t('login.domainError'));
                 }
 
                 // Convert Google credential to Firebase auth
@@ -68,7 +70,7 @@ export default function LoginScreen() {
 
             // AuthContext's onAuthStateChanged listener handles the rest
         } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : 'Login failed';
+            const message = err instanceof Error ? err.message : t('login.loginFailed');
             setError(message);
         } finally {
             setLoading(false);
@@ -83,7 +85,7 @@ export default function LoginScreen() {
                     style={styles.logo}
                     resizeMode="contain"
                 />
-                <Text style={styles.title}>Curator Dashboard</Text>
+                <Text style={styles.title}>{t('login.title')}</Text>
 
                 {error && <Text style={styles.error}>{error}</Text>}
 
@@ -95,7 +97,7 @@ export default function LoginScreen() {
                     {loading ? (
                         <ActivityIndicator color="#fff" />
                     ) : (
-                        <Text style={styles.buttonText}>Sign in with Google</Text>
+                        <Text style={styles.buttonText}>{t('login.signIn')}</Text>
                     )}
                 </Pressable>
             </View>
