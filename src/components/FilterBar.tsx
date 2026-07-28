@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors, fonts, spacing } from '../lib/theme';
 
 interface FilterChipRowProps {
@@ -62,12 +63,13 @@ export default function FilterBar({
     onCityChange,
     isDesktop,
 }: FilterBarProps) {
+    const { t } = useTranslation();
     return (
         <>
             <View style={styles.searchRow}>
                 <TextInput
                     style={styles.searchInput}
-                    placeholder="Search by name..."
+                    placeholder={t('placesList.searchPlaceholder')}
                     placeholderTextColor={colors.textSecondary}
                     value={searchQuery}
                     onChangeText={onSearchChange}
@@ -86,7 +88,7 @@ export default function FilterBar({
                 <FilterChipRow
                     options={cities}
                     selected={selectedCity}
-                    allLabel="All Cities"
+                    allLabel={t('placesList.allCities')}
                     isDesktop={isDesktop}
                     onSelect={onCityChange}
                 />

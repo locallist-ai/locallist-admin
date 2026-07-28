@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { showAlert } from '../lib/dialogs';
 import { api } from '../lib/api';
 import { getDirtyFields as computeDirtyFields } from '../utils/getDirtyFields';
@@ -24,6 +25,7 @@ import {
  */
 export function usePlaceForm(id: string) {
     const router = useRouter();
+    const { t } = useTranslation();
 
     const [place, setPlace] = useState<PlaceData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -48,10 +50,10 @@ export function usePlaceForm(id: string) {
             setForm(res.data);
             originalRef.current = res.data;
         } else {
-            showAlert('Error', `Failed to load place: ${res.error}`);
+            showAlert(t('common.error'), t('placeEdit.loadFailed', { error: res.error ?? '' }));
         }
         setLoading(false);
-    }, [id]);
+    }, [id, t]);
 
     useEffect(() => { loadPlace(); }, [loadPlace]);
 
@@ -70,7 +72,7 @@ export function usePlaceForm(id: string) {
     const handleSave = async () => {
         const dirty = getDirtyFields();
         if (Object.keys(dirty).length === 0) {
-            showAlert('No changes', 'Nothing to save.');
+            showAlert(t('common.noChangesTitle'), t('common.nothingToSave'));
             return;
         }
 
@@ -82,10 +84,10 @@ export function usePlaceForm(id: string) {
             originalRef.current = outcome.data;
             setForm(outcome.data);
             setPlace(outcome.data);
-            showAlert('Saved', 'Place updated successfully.');
+            showAlert(t('common.saved'), t('placeEdit.savedMsg'));
             router.back();
         } else if (outcome.status === 'error') {
-            showAlert('Error', `Failed to save: ${outcome.message}`);
+            showAlert(t('common.error'), t('placeEdit.saveFailed', { error: outcome.message ?? '' }));
         }
     };
 
@@ -106,7 +108,7 @@ export function usePlaceForm(id: string) {
 
     const handleSuggestTranslation = async () => {
         if (place?.source !== 'curated') {
-            showAlert('Not curated', 'Translation is only available for curated places.');
+            showAlert(t('placeEdit.notCuratedTitle'), t('placeEdit.notCuratedMsg'));
             return;
         }
         setTranslating(true);
@@ -115,7 +117,7 @@ export function usePlaceForm(id: string) {
         if (res.data) {
             setForm((prev) => applyTranslationDraft(prev, res.data!));
         } else {
-            showAlert('Error', `Translation failed: ${res.error}`);
+            showAlert(t('common.error'), t('placeEdit.translationFailed', { error: res.error ?? '' }));
         }
     };
 
@@ -127,7 +129,7 @@ export function usePlaceForm(id: string) {
         if (res.data?.whyThisPlace) {
             updateField('whyThisPlace', res.data.whyThisPlace);
         } else {
-            showAlert('Error', res.error ?? 'Could not generate description.');
+            showAlert(t('common.error'), res.error ?? t('placeEdit.descriptionFailed'));
         }
     };
 

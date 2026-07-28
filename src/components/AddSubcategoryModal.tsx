@@ -8,6 +8,7 @@ import {
     StyleSheet,
     ActivityIndicator,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors, fonts, spacing, borderRadius } from '../lib/theme';
 import BaseModal, { baseModalStyles } from './BaseModal';
 import {
@@ -46,6 +47,7 @@ export default function AddSubcategoryModal({
     onCreated,
     onClose,
 }: AddSubcategoryModalProps) {
+    const { t } = useTranslation();
     const [rows, setRows] = useState<DraftRow[]>([emptyRow()]);
     const [saving, setSaving] = useState(false);
     const [submitError, setSubmitError] = useState('');
@@ -106,7 +108,7 @@ export default function AddSubcategoryModal({
         try {
             result = await onCreate(drafts);
         } catch (err) {
-            setSubmitError(err instanceof Error ? err.message : 'Failed to create subcategories.');
+            setSubmitError(err instanceof Error ? err.message : t('subcategory.failed'));
             setSaving(false);
             return;
         }
@@ -133,12 +135,12 @@ export default function AddSubcategoryModal({
             error: f.message,
         })));
         if (result.created.length > 0) {
-            setSubmitError(`${result.created.length} created. The rows below failed. Fix and retry.`);
+            setSubmitError(t('subcategory.partial', { count: result.created.length }));
         }
         setSaving(false);
     };
 
-    const createLabel = rows.length > 1 ? `Create ${rows.length}` : 'Create';
+    const createLabel = rows.length > 1 ? t('subcategory.createN', { count: rows.length }) : t('common.create');
 
     return (
         <BaseModal
@@ -147,8 +149,8 @@ export default function AddSubcategoryModal({
             avoidKeyboard
             cardStyle={styles.card}
         >
-            <Text style={styles.title}>New Subcategories</Text>
-            <Text style={styles.subtitle}>Category: {categoryKey}</Text>
+            <Text style={styles.title}>{t('subcategory.title')}</Text>
+            <Text style={styles.subtitle}>{t('subcategory.category', { category: categoryKey })}</Text>
 
             <ScrollView style={styles.rowList} keyboardShouldPersistTaps="handled">
                         {rows.map((row, index) => (
@@ -164,10 +166,10 @@ export default function AddSubcategoryModal({
                                     </Pressable>
                                 )}
 
-                                <Text style={styles.fieldLabel}>Slug (key)</Text>
+                                <Text style={styles.fieldLabel}>{t('subcategory.slug')}</Text>
                                 <TextInput
                                     style={[styles.input, row.error ? styles.inputError : undefined]}
-                                    placeholder="e.g. rooftop-bar"
+                                    placeholder={t('subcategory.slugPlaceholder')}
                                     placeholderTextColor={colors.textSecondary}
                                     value={row.key}
                                     onChangeText={(v) => handleKeyChange(index, v)}
@@ -176,19 +178,19 @@ export default function AddSubcategoryModal({
                                 />
                                 {!!row.error && <Text style={styles.errorText}>{row.error}</Text>}
 
-                                <Text style={styles.fieldLabel}>Label EN</Text>
+                                <Text style={styles.fieldLabel}>{t('subcategory.labelEn')}</Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="e.g. Rooftop Bar"
+                                    placeholder={t('subcategory.labelEnPlaceholder')}
                                     placeholderTextColor={colors.textSecondary}
                                     value={row.labelEn}
                                     onChangeText={(v) => updateRow(index, { labelEn: v })}
                                 />
 
-                                <Text style={styles.fieldLabel}>Label ES</Text>
+                                <Text style={styles.fieldLabel}>{t('subcategory.labelEs')}</Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="e.g. Bar en Azotea"
+                                    placeholder={t('subcategory.labelEsPlaceholder')}
                                     placeholderTextColor={colors.textSecondary}
                                     value={row.labelEs}
                                     onChangeText={(v) => updateRow(index, { labelEs: v })}
@@ -198,14 +200,14 @@ export default function AddSubcategoryModal({
                     </ScrollView>
 
                     <Pressable style={styles.addRowBtn} onPress={addRow} disabled={saving}>
-                        <Text style={styles.addRowText}>+ Add another</Text>
+                        <Text style={styles.addRowText}>{t('subcategory.addAnother')}</Text>
                     </Pressable>
 
                     {!!submitError && <Text style={styles.errorText}>{submitError}</Text>}
 
             <View style={baseModalStyles.actions}>
                 <Pressable style={styles.cancelBtn} onPress={handleCancel} disabled={saving}>
-                    <Text style={styles.cancelText}>Cancel</Text>
+                    <Text style={styles.cancelText}>{t('common.cancel')}</Text>
                 </Pressable>
                 <Pressable
                     style={[styles.createBtn, (!isValid || saving) && styles.disabledBtn]}

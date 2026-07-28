@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import i18n from '../lib/i18n';
 
 interface State { error: Error | null }
 
@@ -14,7 +15,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
         if (this.state.error) {
             return (
                 <View style={styles.container}>
-                    <Text style={styles.title}>Configuration error</Text>
+                    <Text style={styles.title}>{i18n.t('errorBoundary.title')}</Text>
                     <Text style={styles.message}>{this.state.error.message}</Text>
                 </View>
             );

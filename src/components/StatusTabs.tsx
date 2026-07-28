@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors, fonts, spacing } from '../lib/theme';
 import { STATUS_TABS, type StatusTab } from '../lib/dashboardQueries';
 
@@ -10,8 +11,15 @@ interface StatusTabsProps {
     onSelect: (tab: StatusTab) => void;
 }
 
+const TAB_LABEL_KEY = {
+    in_review: 'placesList.queue',
+    published: 'placesList.published',
+    rejected: 'placesList.rejected',
+} as const;
+
 /** Queue / Published / Rejected tab row with count badges. */
 export default function StatusTabs({ activeTab, counts, isDesktop, onSelect }: StatusTabsProps) {
+    const { t } = useTranslation();
     return (
         <View style={[styles.tabsRow, isDesktop && styles.tabsRowDesktop]}>
             {STATUS_TABS.map((tab) => (
@@ -21,7 +29,7 @@ export default function StatusTabs({ activeTab, counts, isDesktop, onSelect }: S
                     onPress={() => onSelect(tab.key)}
                 >
                     <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
-                        {tab.label}
+                        {t(TAB_LABEL_KEY[tab.key])}
                     </Text>
                     <View style={[styles.badge, activeTab === tab.key && styles.badgeActive]}>
                         <Text style={[styles.badgeText, activeTab !== tab.key && styles.badgeTextInactive]}>

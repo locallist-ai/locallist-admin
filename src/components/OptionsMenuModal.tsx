@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors, fonts } from '../lib/theme';
 import BaseModal from './BaseModal';
 
@@ -20,6 +21,7 @@ type Props = {
  * (no-op en react-native-web) y a ActionSheetIOS fuera de iOS.
  */
 export default function OptionsMenuModal({ visible, title, options, onClose }: Props) {
+    const { t } = useTranslation();
     return (
         <BaseModal
             visible={visible}
@@ -44,7 +46,7 @@ export default function OptionsMenuModal({ visible, title, options, onClose }: P
                 style={({ pressed }) => [styles.cancel, pressed && styles.optionPressed]}
                 onPress={onClose}
             >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </Pressable>
         </BaseModal>
     );

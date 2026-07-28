@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { showAlert } from '../../../src/lib/dialogs';
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import * as DocumentPicker from 'expo-document-picker';
 import Papa from 'papaparse';
 import { api } from '../../../src/lib/api';
@@ -66,6 +67,7 @@ async function parseUrlsFromCsv(fileUri: string): Promise<string[]> {
 // ─── Screen ─────────────────────────────────────────────────────────────────
 
 export default function ImportBatchScreen() {
+    const { t } = useTranslation();
     const [mode, setMode] = useState<'text' | 'csv'>('text');
     const [urlText, setUrlText] = useState('');
     const [csvFileName, setCsvFileName] = useState<string | null>(null);
@@ -90,18 +92,18 @@ export default function ImportBatchScreen() {
             setCsvUrls(urls);
             setCsvFileName(file.name);
         } catch {
-            showAlert('Error', 'Could not read the CSV file.');
+            showAlert(t('common.error'), t('importBatch.couldNotReadCsv'));
         }
     };
 
     const handleImport = async () => {
         const urls = activeUrls;
         if (urls.length === 0) {
-            showAlert('No URLs', 'Add at least one URL before importing.');
+            showAlert(t('importBatch.noUrlsTitle'), t('importBatch.noUrlsMsg'));
             return;
         }
         if (urls.length > 500) {
-            showAlert('Limit', 'Maximum 500 URLs per import.');
+            showAlert(t('importBatch.limitTitle'), t('importBatch.limitMsg'));
             return;
         }
 
@@ -142,7 +144,7 @@ export default function ImportBatchScreen() {
                 const failedRows: ImportRow[] = chunk.map(u => ({
                     input: u,
                     status: 'failed_resolve',
-                    error: res.error ?? 'Request failed',
+                    error: res.error ?? t('importBatch.requestFailed'),
                 }));
                 prog.failed += chunk.length;
                 prog.rows.push(...failedRows);
@@ -166,7 +168,7 @@ export default function ImportBatchScreen() {
 
     return (
         <>
-            <Stack.Screen options={{ title: 'Batch Import' }} />
+            <Stack.Screen options={{ title: t('importBatch.title') }} />
             <ScrollView style={styles.container} contentContainerStyle={styles.content}>
 
                 {/* Mode tabs */}
@@ -176,7 +178,7 @@ export default function ImportBatchScreen() {
                         onPress={() => setMode('text')}
                     >
                         <Text style={[styles.tabText, mode === 'text' && styles.tabTextActive]}>
-                            Paste links
+                            {t('importBatch.pasteLinks')}
                         </Text>
                     </Pressable>
                     <Pressable
@@ -184,7 +186,7 @@ export default function ImportBatchScreen() {
                         onPress={() => setMode('csv')}
                     >
                         <Text style={[styles.tabText, mode === 'csv' && styles.tabTextActive]}>
-                            Upload CSV
+                            {t('importBatch.uploadCsv')}
                         </Text>
                     </Pressable>
                 </View>
@@ -192,7 +194,7 @@ export default function ImportBatchScreen() {
                 {/* Input area */}
                 {mode === 'text' ? (
                     <View style={styles.section}>
-                        <Text style={styles.label}>Google Maps links (one per line)</Text>
+                        <Text style={styles.label}>{t('importBatch.linksLabel')}</Text>
                         <TextInput
                             style={styles.textArea}
                             value={urlText}
@@ -208,44 +210,44 @@ export default function ImportBatchScreen() {
                             autoCorrect={false}
                         />
                         <Text style={styles.hint}>
-                            {`One URL per line. Use canonical URLs (google.com/maps/place/...) or Place IDs (ChIJ...). Short links (maps.app.goo.gl) don't work. Open them in the browser first and copy the full URL.`}
+                            {t('importBatch.linksHint')}
                         </Text>
                         {activeUrls.length > 0 && (
-                            <Text style={styles.hint}>{activeUrls.length} URLs detected</Text>
+                            <Text style={styles.hint}>{t('importBatch.urlsDetected', { count: activeUrls.length })}</Text>
                         )}
                     </View>
                 ) : (
                     <View style={styles.section}>
-                        <Text style={styles.label}>CSV file (first column = URL)</Text>
+                        <Text style={styles.label}>{t('importBatch.csvLabel')}</Text>
                         <Pressable style={styles.csvBtn} onPress={handlePickCsv}>
                             <Text style={styles.csvBtnText}>
-                                {csvFileName ? `📄 ${csvFileName}` : '📂 Choose CSV file…'}
+                                {csvFileName ? t('importBatch.csvSelected', { name: csvFileName }) : t('importBatch.chooseCsv')}
                             </Text>
                         </Pressable>
                         {csvUrls.length > 0 && (
-                            <Text style={styles.hint}>{csvUrls.length} URLs found</Text>
+                            <Text style={styles.hint}>{t('importBatch.urlsFound', { count: csvUrls.length })}</Text>
                         )}
                         {csvUrls.slice(0, 3).map((url, i) => (
                             <Text key={i} style={styles.csvPreview} numberOfLines={1}>{url}</Text>
                         ))}
                         {csvUrls.length > 3 && (
-                            <Text style={styles.hint}>…and {csvUrls.length - 3} more</Text>
+                            <Text style={styles.hint}>{t('importBatch.andMore', { count: csvUrls.length - 3 })}</Text>
                         )}
                     </View>
                 )}
 
                 {/* Config */}
                 <View style={styles.section}>
-                    <Text style={styles.label}>Default city</Text>
+                    <Text style={styles.label}>{t('importBatch.defaultCity')}</Text>
                     <TextInput
                         style={styles.input}
                         value={defaultCity}
                         onChangeText={setDefaultCity}
-                        placeholder="Miami"
+                        placeholder={t('common.cityPlaceholder')}
                         placeholderTextColor={colors.textSecondary}
                     />
 
-                    <Text style={[styles.label, { marginTop: spacing.md }]}>Initial status</Text>
+                    <Text style={[styles.label, { marginTop: spacing.md }]}>{t('importBatch.initialStatus')}</Text>
                     <View style={styles.chipRow}>
                         {STATUSES.map(s => (
                             <Pressable
@@ -266,13 +268,13 @@ export default function ImportBatchScreen() {
                     <View style={styles.progressBox}>
                         <Text style={styles.progressTitle}>
                             {loading
-                                ? `Importing ${progress.processed} / ${progress.total}…`
-                                : `Done: ${progress.total} processed`}
+                                ? t('importBatch.importingProgress', { processed: String(progress.processed), total: String(progress.total) })
+                                : t('importBatch.doneProcessed', { total: String(progress.total) })}
                         </Text>
                         <View style={styles.statsRow}>
-                            <Text style={[styles.stat, styles.statCreated]}>✓ {progress.created} created</Text>
-                            <Text style={[styles.stat, styles.statSkipped]}>– {progress.skipped} duplicates</Text>
-                            <Text style={[styles.stat, styles.statFailed]}>✗ {progress.failed} errors</Text>
+                            <Text style={[styles.stat, styles.statCreated]}>{t('importBatch.statCreated', { count: progress.created })}</Text>
+                            <Text style={[styles.stat, styles.statSkipped]}>{t('importBatch.statDuplicates', { count: progress.skipped })}</Text>
+                            <Text style={[styles.stat, styles.statFailed]}>{t('importBatch.statErrors', { count: progress.failed })}</Text>
                         </View>
 
                         {/* Progress bar */}
@@ -287,7 +289,7 @@ export default function ImportBatchScreen() {
                         {/* Error rows */}
                         {errorRows.length > 0 && (
                             <View style={styles.errorList}>
-                                <Text style={styles.errorListTitle}>URLs with errors:</Text>
+                                <Text style={styles.errorListTitle}>{t('importBatch.urlsWithErrors')}</Text>
                                 {errorRows.map((row, i) => (
                                     <View key={i} style={styles.errorRow}>
                                         <Text style={styles.errorUrl} numberOfLines={1}>{row.input}</Text>
@@ -307,7 +309,7 @@ export default function ImportBatchScreen() {
                         disabled={activeUrls.length === 0}
                     >
                         <Text style={styles.importBtnText}>
-                            Import {activeUrls.length > 0 ? `${activeUrls.length} places` : '…'}
+                            {activeUrls.length > 0 ? t('importBatch.importWithCount', { count: activeUrls.length }) : t('importBatch.importEmpty')}
                         </Text>
                     </Pressable>
                 )}
@@ -315,13 +317,13 @@ export default function ImportBatchScreen() {
                 {loading && (
                     <View style={styles.loadingRow}>
                         <ActivityIndicator color={colors.electricBlue} />
-                        <Text style={styles.loadingText}>Processing…</Text>
+                        <Text style={styles.loadingText}>{t('importBatch.processing')}</Text>
                     </View>
                 )}
 
                 {!loading && progress !== null && (
                     <Pressable style={styles.resetBtn} onPress={handleReset}>
-                        <Text style={styles.resetBtnText}>New import</Text>
+                        <Text style={styles.resetBtnText}>{t('importBatch.newImport')}</Text>
                     </Pressable>
                 )}
 

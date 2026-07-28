@@ -11,6 +11,7 @@ import Animated, {
     interpolate,
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import type { PlaceData } from '../types/place';
 import { colors, fonts, borderRadius } from '../lib/theme';
 
@@ -24,6 +25,7 @@ interface SwipeCardProps {
 }
 
 export default function SwipeCard({ place, isTop, onApprove, onReject, showButtons = false, onPostpone }: SwipeCardProps) {
+    const { t } = useTranslation();
     const { width, height } = useWindowDimensions();
     const insets = useSafeAreaInsets();
     const router = useRouter();
@@ -112,10 +114,10 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
 
             {/* Swipe labels */}
             <Animated.View style={[styles.label, styles.nopeLabel, nopeStyle]}>
-                <Text style={[styles.labelText, { color: colors.error }]}>NOPE</Text>
+                <Text style={[styles.labelText, { color: colors.error }]}>{t('swipe.nope')}</Text>
             </Animated.View>
             <Animated.View style={[styles.label, styles.likeLabel, likeStyle]}>
-                <Text style={[styles.labelText, { color: colors.successEmerald }]}>APPROVE</Text>
+                <Text style={[styles.labelText, { color: colors.successEmerald }]}>{t('swipe.approveLabel')}</Text>
             </Animated.View>
 
             {/* Info overlay — intentionally dark over photos */}
@@ -164,16 +166,16 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
             {showButtons && isTop && (
                 <View style={styles.buttonRow}>
                     <Pressable style={styles.rejectButton} onPress={onReject}>
-                        <Text style={styles.rejectButtonText}>Reject</Text>
+                        <Text style={styles.rejectButtonText}>{t('common.reject')}</Text>
                     </Pressable>
                     <Pressable style={styles.approveButton} onPress={onApprove}>
-                        <Text style={styles.approveButtonText}>Approve</Text>
+                        <Text style={styles.approveButtonText}>{t('common.approve')}</Text>
                     </Pressable>
                 </View>
             )}
             {isTop && onPostpone && (
                 <Pressable style={styles.postponeButton} onPress={onPostpone}>
-                    <Text style={styles.postponeButtonText}>Postpone</Text>
+                    <Text style={styles.postponeButtonText}>{t('swipe.postpone')}</Text>
                 </Pressable>
             )}
         </View>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors, fonts, spacing, borderRadius } from '../lib/theme';
 import BaseModal, { baseModalStyles } from './BaseModal';
 
@@ -11,6 +12,7 @@ interface RejectionModalProps {
 }
 
 export default function RejectionModal({ visible, placeName, onConfirm, onCancel }: RejectionModalProps) {
+    const { t } = useTranslation();
     const [reason, setReason] = useState('');
 
     const handleConfirm = () => {
@@ -27,14 +29,14 @@ export default function RejectionModal({ visible, placeName, onConfirm, onCancel
 
     return (
         <BaseModal visible={visible} onRequestClose={handleCancel} avoidKeyboard>
-            <Text style={styles.title}>Reject Place</Text>
+            <Text style={styles.title}>{t('rejection.title')}</Text>
             <Text style={styles.subtitle} numberOfLines={1}>
                 {placeName}
             </Text>
 
             <TextInput
                 style={styles.input}
-                placeholder="Reason for rejection..."
+                placeholder={t('rejection.placeholder')}
                 placeholderTextColor={colors.textSecondary}
                 value={reason}
                 onChangeText={setReason}
@@ -46,14 +48,14 @@ export default function RejectionModal({ visible, placeName, onConfirm, onCancel
 
             <View style={baseModalStyles.actions}>
                 <Pressable style={styles.cancelBtn} onPress={handleCancel}>
-                    <Text style={styles.cancelText}>Cancel</Text>
+                    <Text style={styles.cancelText}>{t('common.cancel')}</Text>
                 </Pressable>
                 <Pressable
                     style={[styles.rejectBtn, !reason.trim() && styles.disabledBtn]}
                     onPress={handleConfirm}
                     disabled={!reason.trim()}
                 >
-                    <Text style={styles.rejectText}>Reject</Text>
+                    <Text style={styles.rejectText}>{t('common.reject')}</Text>
                 </Pressable>
             </View>
         </BaseModal>

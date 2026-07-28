@@ -11,6 +11,7 @@ import {
     Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { api } from '../../src/lib/api';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { useFilterState } from '../../src/hooks/useFilterState';
@@ -32,6 +33,7 @@ import { colors, fonts, spacing } from '../../src/lib/theme';
 import { CATEGORIES } from '../../src/lib/constants';
 
 export default function DashboardScreen() {
+    const { t } = useTranslation();
     const { isDesktop } = useBreakpoint();
     const router = useRouter();
 
@@ -92,30 +94,30 @@ export default function DashboardScreen() {
         batchCancelRef.current = null;
 
         if (result.error) {
-            showAlert('Error', `Batch translate failed: ${result.error}`);
+            showAlert(t('common.error'), t('dashboard.batchFailed', { error: result.error ?? '' }));
         } else if (!result.aborted) {
-            showAlert('Done', `Translated: ${result.translated}, Failed: ${result.failed}`);
+            showAlert(t('common.done'), t('dashboard.batchDone', { translated: String(result.translated), failed: String(result.failed) }));
         }
     };
 
     const handleTranslatePlacesBatch = () => {
         showAlert(
-            'Translate All Curated Places (ES)',
-            'This will send all untranslated curated places to Gemini for ES draft translation. Continue?',
+            t('dashboard.translatePlacesTitle'),
+            t('dashboard.translatePlacesMsg'),
             [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Translate', onPress: () => runBatchTranslateLoop('/admin/places/translate-batch', 'Translating places…') },
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('dashboard.translate'), onPress: () => runBatchTranslateLoop('/admin/places/translate-batch', t('dashboard.translatingPlaces')) },
             ]
         );
     };
 
     const handleTranslatePlansBatch = () => {
         showAlert(
-            'Translate All Curated Plans (ES)',
-            'This will send all untranslated curated plans to Gemini for ES draft translation. Continue?',
+            t('dashboard.translatePlansTitle'),
+            t('dashboard.translatePlansMsg'),
             [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Translate', onPress: () => runBatchTranslateLoop('/admin/plans/translate-batch', 'Translating plans…') },
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('dashboard.translate'), onPress: () => runBatchTranslateLoop('/admin/plans/translate-batch', t('dashboard.translatingPlans')) },
             ]
         );
     };
@@ -128,7 +130,7 @@ export default function DashboardScreen() {
         if (Platform.OS === 'ios') {
             ActionSheetIOS.showActionSheetWithOptions(
                 {
-                    options: ['Cancel', 'Create manually', 'Import from Google', 'Import batch (links/CSV)', 'Backfill descriptions'],
+                    options: [t('common.cancel'), t('dashboard.createManually'), t('dashboard.importGoogle'), t('dashboard.importBatch'), t('dashboard.backfillDescriptions')],
                     cancelButtonIndex: 0,
                 },
                 (idx) => {
@@ -177,7 +179,7 @@ export default function DashboardScreen() {
                         onPress={() => setMode('places')}
                     >
                         <Text style={[styles.segmentText, mode === 'places' && styles.segmentTextActive]}>
-                            Places
+                            {t('dashboard.places')}
                         </Text>
                     </Pressable>
                     <Pressable
@@ -185,7 +187,7 @@ export default function DashboardScreen() {
                         onPress={() => setMode('plans')}
                     >
                         <Text style={[styles.segmentText, mode === 'plans' && styles.segmentTextActive]}>
-                            Plans
+                            {t('dashboard.plans')}
                         </Text>
                     </Pressable>
                 </View>
@@ -213,7 +215,7 @@ export default function DashboardScreen() {
                                 <FilterChipRow
                                     options={CATEGORIES}
                                     selected={filters.selectedCategory}
-                                    allLabel="All"
+                                    allLabel={t('placesList.all')}
                                     isDesktop={isDesktop}
                                     onSelect={(cat) => filters.setSelectedCategory(
                                         cat === filters.selectedCategory ? null : cat
@@ -250,7 +252,7 @@ export default function DashboardScreen() {
                             onPress={handleTranslatePlansBatch}
                             disabled={!!batchProgress}
                         >
-                            <Text style={batchBtnStyles.batchTranslateBtnText}>Translate All Curated → ES</Text>
+                            <Text style={batchBtnStyles.batchTranslateBtnText}>{t('dashboard.translateAllCurated')}</Text>
                         </Pressable>
                         <PlansList
                             plans={plansData.plans}
@@ -267,12 +269,12 @@ export default function DashboardScreen() {
 
             <OptionsMenuModal
                 visible={createMenuVisible}
-                title="Add place"
+                title={t('dashboard.addPlace')}
                 options={[
-                    { label: 'Create manually', onSelect: () => router.push('/place/create') },
-                    { label: 'Import from Google', onSelect: () => router.push('/places/import-google') },
-                    { label: 'Import batch (links/CSV)', onSelect: () => router.push('/places/import-batch') },
-                    { label: 'Backfill descriptions', onSelect: () => router.push('/places/backfill-descriptions') },
+                    { label: t('dashboard.createManually'), onSelect: () => router.push('/place/create') },
+                    { label: t('dashboard.importGoogle'), onSelect: () => router.push('/places/import-google') },
+                    { label: t('dashboard.importBatch'), onSelect: () => router.push('/places/import-batch') },
+                    { label: t('dashboard.backfillDescriptions'), onSelect: () => router.push('/places/backfill-descriptions') },
                 ]}
                 onClose={() => setCreateMenuVisible(false)}
             />
@@ -297,7 +299,7 @@ export default function DashboardScreen() {
                             onPress={() => { batchCancelRef.current?.abort(); setBatchProgress(null); }}
                             style={styles.batchOverlayCancel}
                         >
-                            <Text style={styles.batchOverlayCancelText}>Cancel</Text>
+                            <Text style={styles.batchOverlayCancelText}>{t('common.cancel')}</Text>
                         </Pressable>
                     </View>
                 </View>

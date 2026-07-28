@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { showAlert } from '../../../src/lib/dialogs';
 import { useRouter, Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { api } from '../../../src/lib/api';
 import type { PlaceData } from '../../../src/types/place';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
@@ -18,6 +19,7 @@ import { CATEGORIES, PRICE_RANGES, BEST_TIMES, BEST_FOR, STATUSES } from '../../
 import { useTaxonomy } from '../../../src/hooks/useTaxonomy';
 
 export default function PlaceCreateScreen() {
+    const { t } = useTranslation();
     const router = useRouter();
     const [saving, setSaving] = useState(false);
     const { byCategory } = useTaxonomy();
@@ -35,15 +37,15 @@ export default function PlaceCreateScreen() {
 
     const handleCreate = async () => {
         if (!form.name?.trim()) {
-            showAlert('Required', 'Name is required.');
+            showAlert(t('common.required'), t('placeCreate.nameRequired'));
             return;
         }
         if (!form.category) {
-            showAlert('Required', 'Category is required.');
+            showAlert(t('common.required'), t('placeCreate.categoryRequired'));
             return;
         }
         if (!form.whyThisPlace?.trim()) {
-            showAlert('Required', 'Why This Place is required.');
+            showAlert(t('common.required'), t('placeCreate.whyRequired'));
             return;
         }
 
@@ -69,10 +71,10 @@ export default function PlaceCreateScreen() {
         setSaving(false);
 
         if (res.data) {
-            showAlert('Created', `${res.data.name} created successfully.`);
+            showAlert(t('placeCreate.createdTitle'), t('placeCreate.createdMsg', { name: res.data.name }));
             router.back();
         } else {
-            showAlert('Error', `Failed to create: ${res.error}`);
+            showAlert(t('common.error'), t('placeCreate.createFailed', { error: res.error ?? '' }));
         }
     };
 
@@ -111,25 +113,25 @@ export default function PlaceCreateScreen() {
         <>
             <Stack.Screen
                 options={{
-                    title: 'Create Place',
+                    title: t('nav.createPlace'),
                     headerStyle: { backgroundColor: colors.bgMain },
                     headerTintColor: colors.deepOcean,
                 }}
             />
             <ScrollView style={styles.container} contentContainerStyle={styles.content}>
                 {/* Section: Identity */}
-                <Text style={styles.sectionTitle}>Identity</Text>
+                <Text style={styles.sectionTitle}>{t('place.sectionIdentity')}</Text>
                 <View style={styles.section}>
-                    <FieldLabel label="Name *" />
+                    <FieldLabel label={t('placeCreate.nameLabel')} />
                     <TextInput
                         style={styles.input}
                         value={form.name ?? ''}
                         onChangeText={(v) => updateField('name', v)}
-                        placeholder="Place name"
+                        placeholder={t('placeCreate.namePlaceholder')}
                         placeholderTextColor={colors.textSecondary}
                     />
 
-                    <FieldLabel label="Category *" />
+                    <FieldLabel label={t('placeCreate.categoryLabel')} />
                     <View style={styles.chipRow}>
                         {CATEGORIES.map((cat) => (
                             <Pressable
@@ -144,7 +146,7 @@ export default function PlaceCreateScreen() {
                         ))}
                     </View>
 
-                    <FieldLabel label="Subcategories" />
+                    <FieldLabel label={t('place.subcategories')} />
                     {form.category ? (
                         <View style={styles.chipRow}>
                             {(byCategory[form.category] ?? []).map((sub) => {
@@ -169,15 +171,15 @@ export default function PlaceCreateScreen() {
                             })}
                         </View>
                     ) : (
-                        <Text style={styles.subcategoryHint}>Select a category first</Text>
+                        <Text style={styles.subcategoryHint}>{t('place.selectCategoryFirst')}</Text>
                     )}
 
-                    <FieldLabel label="Why This Place *" />
+                    <FieldLabel label={t('placeCreate.whyLabel')} />
                     <TextInput
                         style={[styles.input, styles.multilineInput]}
                         value={form.whyThisPlace ?? ''}
                         onChangeText={(v) => updateField('whyThisPlace', v)}
-                        placeholder="What makes this place special?"
+                        placeholder={t('placeCreate.whyPlaceholder')}
                         multiline
                         numberOfLines={3}
                         textAlignVertical="top"
@@ -186,18 +188,18 @@ export default function PlaceCreateScreen() {
                 </View>
 
                 {/* Section: Location */}
-                <Text style={styles.sectionTitle}>Location</Text>
+                <Text style={styles.sectionTitle}>{t('place.sectionLocation')}</Text>
                 <View style={styles.section}>
-                    <FieldLabel label="Neighborhood" />
+                    <FieldLabel label={t('place.neighborhood')} />
                     <TextInput
                         style={styles.input}
                         value={form.neighborhood ?? ''}
                         onChangeText={(v) => updateField('neighborhood', v)}
-                        placeholder="e.g. Wynwood"
+                        placeholder={t('placeCreate.neighborhoodPlaceholder')}
                         placeholderTextColor={colors.textSecondary}
                     />
 
-                    <FieldLabel label="City" />
+                    <FieldLabel label={t('place.city')} />
                     <TextInput
                         style={styles.input}
                         value={form.city ?? ''}
@@ -207,7 +209,7 @@ export default function PlaceCreateScreen() {
 
                     <View style={styles.row}>
                         <View style={styles.halfField}>
-                            <FieldLabel label="Latitude" />
+                            <FieldLabel label={t('place.latitude')} />
                             <TextInput
                                 style={styles.input}
                                 value={form.latitude?.toString() ?? ''}
@@ -217,7 +219,7 @@ export default function PlaceCreateScreen() {
                             />
                         </View>
                         <View style={styles.halfField}>
-                            <FieldLabel label="Longitude" />
+                            <FieldLabel label={t('place.longitude')} />
                             <TextInput
                                 style={styles.input}
                                 value={form.longitude?.toString() ?? ''}
@@ -230,9 +232,9 @@ export default function PlaceCreateScreen() {
                 </View>
 
                 {/* Section: Curation */}
-                <Text style={styles.sectionTitle}>Curation</Text>
+                <Text style={styles.sectionTitle}>{t('place.sectionCuration')}</Text>
                 <View style={styles.section}>
-                    <FieldLabel label="Best For" />
+                    <FieldLabel label={t('place.bestFor')} />
                     <View style={styles.chipRow}>
                         {BEST_FOR.map((tag) => {
                             const isActive = (form.bestFor ?? []).includes(tag);
@@ -258,7 +260,7 @@ export default function PlaceCreateScreen() {
                             ))}
                     </View>
 
-                    <FieldLabel label="Best Time" />
+                    <FieldLabel label={t('place.bestTime')} />
                     <View style={styles.chipRow}>
                         {BEST_TIMES.map((time) => {
                             const isActive = (form.bestTimes ?? []).includes(time);
@@ -276,7 +278,7 @@ export default function PlaceCreateScreen() {
                         })}
                     </View>
 
-                    <FieldLabel label="Price Range" />
+                    <FieldLabel label={t('place.priceRange')} />
                     <View style={styles.chipRow}>
                         {PRICE_RANGES.map((pr) => (
                             <Pressable
@@ -297,7 +299,7 @@ export default function PlaceCreateScreen() {
                         ))}
                     </View>
 
-                    <FieldLabel label="Status" />
+                    <FieldLabel label={t('placeEdit.metaStatus')} />
                     <View style={styles.chipRow}>
                         {STATUSES.map((s) => (
                             <Pressable
@@ -314,7 +316,7 @@ export default function PlaceCreateScreen() {
                 </View>
 
                 {/* Section: Photos */}
-                <Text style={styles.sectionTitle}>Photos</Text>
+                <Text style={styles.sectionTitle}>{t('place.sectionPhotos')}</Text>
                 <View style={styles.section}>
                     {(form.photos ?? []).map((url) => (
                         <View key={url} style={styles.photoRow}>
@@ -330,7 +332,7 @@ export default function PlaceCreateScreen() {
                             style={[styles.input, { flex: 1 }]}
                             value={newPhotoUrl}
                             onChangeText={setNewPhotoUrl}
-                            placeholder="Paste photo URL..."
+                            placeholder={t('place.pastePhotoUrl')}
                             placeholderTextColor={colors.textSecondary}
                             onSubmitEditing={addPhoto}
                             returnKeyType="done"
@@ -351,7 +353,7 @@ export default function PlaceCreateScreen() {
                     {saving ? (
                         <ActivityIndicator color="#fff" size="small" />
                     ) : (
-                        <Text style={styles.createBtnText}>Create Place</Text>
+                        <Text style={styles.createBtnText}>{t('nav.createPlace')}</Text>
                     )}
                 </Pressable>
 

@@ -61,6 +61,11 @@ describe('admin i18n key parity (en <-> es)', () => {
             'analytics.chat.title',
             'analytics.chat.latencyP95Hint',
             'analytics.chat.providerModel',
+            // Codes/proper nouns identical across languages.
+            'common.error',
+            'common.cityPlaceholder',
+            'planCreate.imageUrlPlaceholder',
+            'importBatch.csvSelected',
         ]);
         const untranslated = enKeys.filter(
             (k) => !allowedEqual.has(k) && enPaths[k] === esPaths[k],
