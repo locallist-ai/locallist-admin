@@ -19,10 +19,11 @@ interface DashboardHeaderProps {
     onCreatePress: () => void;
     /** Navigation lives in the screen (parity with onCreatePress). */
     onAnalyticsPress: () => void;
+    onBillingPress: () => void;
 }
 
-/** Logo + analytics / refresh / create / logout row. The "+ Create" menu lives in the screen. */
-export default function DashboardHeader({ refreshing, isDesktop, onRefresh, onCreatePress, onAnalyticsPress }: DashboardHeaderProps) {
+/** Logo + analytics / billing / refresh / create / logout row. The "+ Create" menu lives in the screen. */
+export default function DashboardHeader({ refreshing, isDesktop, onRefresh, onCreatePress, onAnalyticsPress, onBillingPress }: DashboardHeaderProps) {
     const { t } = useTranslation();
     const { signOut } = useAuth();
 
@@ -37,6 +38,9 @@ export default function DashboardHeader({ refreshing, isDesktop, onRefresh, onCr
                 <LanguageToggle />
                 <Pressable style={styles.analyticsBtn} onPress={onAnalyticsPress}>
                     <Text style={styles.analyticsBtnText}>{t('nav.analytics')}</Text>
+                </Pressable>
+                <Pressable style={styles.analyticsBtn} onPress={onBillingPress}>
+                    <Text style={styles.analyticsBtnText}>{t('nav.billing')}</Text>
                 </Pressable>
                 <Pressable
                     style={[styles.refreshBtn, refreshing && { opacity: 0.5 }]}

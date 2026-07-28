@@ -25,6 +25,12 @@ export default function AppLayout() {
                 }}
             />
             <Stack.Screen
+                name="billing"
+                options={{
+                    title: t('nav.billing'),
+                }}
+            />
+            <Stack.Screen
                 name="place/[id]"
                 options={{
                     title: t('nav.editPlace'),
