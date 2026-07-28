@@ -1,7 +1,9 @@
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../../src/lib/theme';
 
 export default function AppLayout() {
+    const { t } = useTranslation();
     return (
         <Stack
             screenOptions={{
@@ -12,44 +14,44 @@ export default function AppLayout() {
             <Stack.Screen
                 name="index"
                 options={{
-                    title: 'Curation Queue',
+                    title: t('nav.curationQueue'),
                     headerShown: false,
                 }}
             />
             <Stack.Screen
                 name="analytics"
                 options={{
-                    title: 'Analytics',
+                    title: t('nav.analytics'),
                 }}
             />
             <Stack.Screen
                 name="place/[id]"
                 options={{
-                    title: 'Edit Place',
+                    title: t('nav.editPlace'),
                 }}
             />
             <Stack.Screen
                 name="place/create"
                 options={{
-                    title: 'Create Place',
+                    title: t('nav.createPlace'),
                 }}
             />
             <Stack.Screen
                 name="plans/create"
                 options={{
-                    title: 'Create Plan',
+                    title: t('nav.createPlan'),
                 }}
             />
             <Stack.Screen
                 name="plans/[id]"
                 options={{
-                    title: 'Edit Plan',
+                    title: t('nav.editPlan'),
                 }}
             />
             <Stack.Screen
                 name="places/import-google"
                 options={{
-                    title: 'Import from Google',
+                    title: t('nav.importGoogle'),
                 }}
             />
         </Stack>

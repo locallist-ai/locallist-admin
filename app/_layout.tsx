@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { colors } from '../src/lib/theme';
+import '../src/lib/i18n';
 
 function RootLayoutNav() {
     const { token, isLoading } = useAuth();

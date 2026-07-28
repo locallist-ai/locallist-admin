@@ -133,19 +133,18 @@ export type Granularity = 'day' | 'week' | 'month';
 
 export interface RangeOption {
     key: RangeKey;
-    label: string;
     /** Window length in days; `null` for all-time (no lower bound). */
     days: number | null;
     granularity: Granularity;
 }
 
+// Chip labels are i18n'd in the UI (`analytics.ranges.<key>`), so no label here.
 export const RANGE_OPTIONS: RangeOption[] = [
-    // Compact labels keep all five chips on one row on a phone.
-    { key: '7d', label: '7d', days: 7, granularity: 'day' },
-    { key: '30d', label: '30d', days: 30, granularity: 'day' },
-    { key: '90d', label: '90d', days: 90, granularity: 'week' },
-    { key: '1y', label: '1y', days: 365, granularity: 'month' },
-    { key: 'all', label: 'All', days: null, granularity: 'month' },
+    { key: '7d', days: 7, granularity: 'day' },
+    { key: '30d', days: 30, granularity: 'day' },
+    { key: '90d', days: 90, granularity: 'week' },
+    { key: '1y', days: 365, granularity: 'month' },
+    { key: 'all', days: null, granularity: 'month' },
 ];
 
 const RANGE_OPTION_BY_KEY: Record<RangeKey, RangeOption> = Object.fromEntries(
@@ -501,6 +500,36 @@ export function aggregatePlanMetrics(
 /** null when the denominator is not positive (renders as an em dash). */
 export function safeDiv(numerator: number, denominator: number): number | null {
     return denominator > 0 ? numerator / denominator : null;
+}
+
+// ─── Stats-endpoint distributions (already computed by the backend) ───
+//
+// These render data the /stats endpoints ALREADY return but the screen
+// did not show yet — no new backend. `chat-turns/stats` carries
+// `finishReasonBreakdown` + `errorCodeBreakdown` (code -> count);
+// `plan-metrics/stats` carries `byCity` (per-city count/openRate/followRate).
+
+export interface BreakdownRow {
+    key: string;
+    count: number;
+}
+
+/**
+ * A `Record<code, count>` breakdown as ordered rows: highest count first,
+ * ties broken alphabetically by key (stable, deterministic order). An
+ * absent/empty record yields an empty list.
+ */
+export function breakdownToRows(record: Record<string, number> | undefined | null): BreakdownRow[] {
+    if (!record) return [];
+    return Object.entries(record)
+        .map(([key, count]) => ({ key, count }))
+        .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+}
+
+/** Per-city stats ordered by plan count desc, then city name asc. */
+export function sortCityStats(byCity: AdminPlanMetricsByCity[] | undefined | null): AdminPlanMetricsByCity[] {
+    if (!byCity) return [];
+    return [...byCity].sort((a, b) => b.count - a.count || a.city.localeCompare(b.city));
 }
 
 // ─── Load orchestration ──────────────────────────────────────────────

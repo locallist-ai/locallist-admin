@@ -7,10 +7,12 @@ import {
     Text,
     View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { useAnalyticsData } from '../../src/hooks/useAnalyticsData';
 import {
     BarList,
+    CityStatsTable,
     RangeSelector,
     SectionCard,
     StackedDayBars,
@@ -20,12 +22,15 @@ import {
 import {
     ANALYTICS_MAX_PAGES,
     ANALYTICS_PAGE_LIMIT,
+    breakdownToRows,
     formatMs,
     formatPct,
     formatPeriodLabel,
     formatUsd,
     safeDiv,
+    sortCityStats,
 } from '../../src/lib/analyticsQueries';
+import { legendKey } from '../../src/lib/analyticsLegend';
 import { colors, fonts, spacing } from '../../src/lib/theme';
 
 /**
@@ -35,6 +40,7 @@ import { colors, fonts, spacing } from '../../src/lib/theme';
  * `src/lib/analyticsQueries.ts`; this screen is composition only.
  */
 export default function AnalyticsScreen() {
+    const { t } = useTranslation();
     const { isDesktop } = useBreakpoint();
     const {
         rangeKey, setRangeKey, granularity, loading, error, truncated,
@@ -46,24 +52,39 @@ export default function AnalyticsScreen() {
     // 0 there, which would read as a real measurement).
     const hasTurns = (chatStats?.totalTurns ?? 0) > 0;
     const chatItems: StatItem[] = chatStats ? [
-        { label: 'Turns', value: String(chatStats.totalTurns) },
-        { label: 'Cost (range)', value: hasTurns ? formatUsd(chatStats.totalCostUsd) : '—' },
+        { label: t('analytics.chat.turns'), value: String(chatStats.totalTurns), info: t(legendKey('turns')) },
+        { label: t('analytics.chat.cost'), value: hasTurns ? formatUsd(chatStats.totalCostUsd) : '—', info: t(legendKey('cost')) },
         {
-            label: 'Latency p50',
+            label: t('analytics.chat.latencyP50'),
             value: chatAggregate?.latencyP50 != null ? formatMs(chatAggregate.latencyP50) : '—',
-            hint: chatAggregate?.latencyP95 != null ? `p95 ${formatMs(chatAggregate.latencyP95)}` : undefined,
+            hint: chatAggregate?.latencyP95 != null ? t('analytics.chat.latencyP95Hint', { value: formatMs(chatAggregate.latencyP95) }) : undefined,
+            info: t(legendKey('latency')),
         },
-        { label: 'Error rate', value: hasTurns ? formatPct(chatStats.errorRate) : '—' },
-        { label: 'Slot completeness (avg)', value: hasTurns ? chatStats.avgSlotCompleteness.toFixed(1) : '—' },
+        { label: t('analytics.chat.errorRate'), value: hasTurns ? formatPct(chatStats.errorRate) : '—', info: t(legendKey('errorRate')) },
+        { label: t('analytics.chat.slotCompleteness'), value: hasTurns ? chatStats.avgSlotCompleteness.toFixed(1) : '—', info: t(legendKey('slotCompleteness')) },
     ] : [];
+
+    const finishReasonRows = breakdownToRows(chatStats?.finishReasonBreakdown).map((r) => ({
+        label: r.key, value: r.count, display: String(r.count),
+    }));
+    const errorCodeRows = breakdownToRows(chatStats?.errorCodeBreakdown).map((r) => ({
+        label: r.key, value: r.count, display: String(r.count),
+    }));
 
     const avgCostPerPlan = planStats ? safeDiv(planStats.totalCostUsd, planStats.totalPlans) : null;
     const planItems: StatItem[] = planStats ? [
-        { label: 'Plans generated', value: String(planStats.totalPlans) },
-        { label: 'Avg cost / plan', value: avgCostPerPlan != null ? formatUsd(avgCostPerPlan) : '—' },
-        { label: 'Opened', value: planStats.totalPlans > 0 ? formatPct(planStats.openRate) : '—' },
-        { label: 'Followed', value: planStats.totalPlans > 0 ? formatPct(planStats.followRate) : '—' },
+        { label: t('analytics.plans.generated'), value: String(planStats.totalPlans), info: t(legendKey('plansGenerated')) },
+        { label: t('analytics.plans.avgCost'), value: avgCostPerPlan != null ? formatUsd(avgCostPerPlan) : '—', info: t(legendKey('avgCost')) },
+        { label: t('analytics.plans.opened'), value: planStats.totalPlans > 0 ? formatPct(planStats.openRate) : '—', info: t(legendKey('opened')) },
+        { label: t('analytics.plans.followed'), value: planStats.totalPlans > 0 ? formatPct(planStats.followRate) : '—', info: t(legendKey('followed')) },
     ] : [];
+
+    const cityRows = sortCityStats(planStats?.byCity).map((c) => ({
+        city: c.city,
+        count: String(c.count),
+        open: formatPct(c.openRate),
+        follow: formatPct(c.followRate),
+    }));
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
@@ -72,19 +93,16 @@ export default function AnalyticsScreen() {
 
                 {error && (
                     <View style={styles.errorBanner}>
-                        <Text style={styles.errorText}>Failed to load analytics: {error}</Text>
+                        <Text style={styles.errorText}>{t('analytics.error.failed', { error })}</Text>
                         <Pressable onPress={reload} style={styles.retryBtn}>
-                            <Text style={styles.retryText}>Retry</Text>
+                            <Text style={styles.retryText}>{t('analytics.error.retry')}</Text>
                         </Pressable>
                     </View>
                 )}
 
                 {truncated && (
                     <Text style={styles.truncatedNote}>
-                        Large range: summary cards remain exact, but the series, percentiles and
-                        mixes use the{' '}{ANALYTICS_MAX_PAGES * ANALYTICS_PAGE_LIMIT} most recent
-                        rows — for All-time and very large ranges the chart starts at the oldest of
-                        those rows, so older history may be missing entirely.
+                        {t('analytics.truncated', { rows: String(ANALYTICS_MAX_PAGES * ANALYTICS_PAGE_LIMIT) })}
                     </Text>
                 )}
 
@@ -94,28 +112,43 @@ export default function AnalyticsScreen() {
                     </View>
                 ) : (
                     <>
-                        <SectionCard title="Chat">
+                        <SectionCard title={t('analytics.chat.title')}>
                             <StatCardGrid items={chatItems} />
                             <BarList
-                                title="Turns / period"
+                                title={t('analytics.chat.turnsPerPeriod')}
+                                info={t(legendKey('turnsPerPeriod'))}
                                 rows={(chatAggregate?.turnsPerPeriod ?? []).map((b) => ({
                                     label: formatPeriodLabel(b.key, granularity), value: b.total, display: String(b.total),
                                 }))}
-                                emptyText="No chat turns in this range."
+                                emptyText={t('analytics.chat.empty')}
                             />
                             <BarList
-                                title="Provider · model"
+                                title={t('analytics.chat.providerModel')}
+                                info={t(legendKey('providerModel'))}
                                 rows={(chatAggregate?.providerModelMix ?? []).map((m) => ({
                                     label: m.key, value: m.count, display: `${m.count} · ${formatPct(m.share)}`,
                                 }))}
-                                emptyText="No chat turns in this range."
+                                emptyText={t('analytics.chat.empty')}
+                            />
+                            <BarList
+                                title={t('analytics.chat.finishReasons')}
+                                info={t(legendKey('finishReasons'))}
+                                rows={finishReasonRows}
+                                emptyText={t('analytics.chat.noData')}
+                            />
+                            <BarList
+                                title={t('analytics.chat.errorCodes')}
+                                info={t(legendKey('errorCodes'))}
+                                rows={errorCodeRows}
+                                emptyText={t('analytics.chat.noErrors')}
                             />
                         </SectionCard>
 
-                        <SectionCard title="Plans">
+                        <SectionCard title={t('analytics.plans.title')}>
                             <StatCardGrid items={planItems} />
                             <StackedDayBars
-                                title="Plans / period by source"
+                                title={t('analytics.plans.plansBySource')}
+                                info={t(legendKey('plansBySource'))}
                                 rows={(planAggregate?.plansPerPeriodBySource ?? []).map((b) => ({
                                     label: formatPeriodLabel(b.key, granularity), counts: b.counts, total: b.total,
                                 }))}
@@ -123,7 +156,13 @@ export default function AnalyticsScreen() {
                                 seriesTotals={Object.fromEntries(
                                     (planAggregate?.sourceMix ?? []).map((m) => [m.key, m.count]),
                                 )}
-                                emptyText="No plans generated in this range."
+                                emptyText={t('analytics.plans.empty')}
+                            />
+                            <CityStatsTable
+                                title={t('analytics.plans.byCity')}
+                                info={t(legendKey('byCity'))}
+                                rows={cityRows}
+                                emptyText={t('analytics.cityTable.empty')}
                             />
                         </SectionCard>
 
