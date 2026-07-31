@@ -20,6 +20,7 @@ import type { GooglePlacePreview, GoogleSearchResponse, PlaceData } from '../../
 import { CATEGORIES, getSubcategories, inferSubcategoryFromGoogleTypes } from '../../../src/lib/constants';
 import { useTaxonomy } from '../../../src/hooks/useTaxonomy';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function ImportGoogleScreen() {
     const { t } = useTranslation();
@@ -374,7 +375,10 @@ function PlaceResultCard({
                 ) : null}
                 <View style={styles.resultMeta}>
                     {place.rating != null && (
-                        <Text style={styles.metaText}>★ {place.rating.toFixed(1)}</Text>
+                        <Text style={styles.metaText}>
+                            <MaterialCommunityIcons name="star" size={12} color={colors.textSecondary} />
+                            {' '}{place.rating.toFixed(1)}
+                        </Text>
                     )}
                     {place.reviewCount != null && (
                         <Text style={styles.metaText}>({place.reviewCount.toLocaleString()})</Text>
@@ -388,7 +392,14 @@ function PlaceResultCard({
                             onPress={(e) => { e.stopPropagation?.(); onEditSubcategory(); }}
                         >
                             <Text style={styles.subBadgeText}>
-                                {suggestedSubcategory ? `${suggestedSubcategory} ✎` : t('importGoogle.addSubcategory')}
+                                {suggestedSubcategory ? (
+                                    <>
+                                        {suggestedSubcategory}{' '}
+                                        <MaterialCommunityIcons name="pencil" size={10} color="#6366f1" />
+                                    </>
+                                ) : (
+                                    t('importGoogle.addSubcategory')
+                                )}
                             </Text>
                         </Pressable>
                     )}
@@ -396,7 +407,7 @@ function PlaceResultCard({
             </View>
             {!place.existsInLib && (
                 <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                    {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                    {isSelected && <MaterialCommunityIcons name="check" size={14} color="#fff" />}
                 </View>
             )}
         </Pressable>
@@ -466,7 +477,6 @@ const styles = StyleSheet.create({
         marginRight: spacing.sm, alignItems: 'center', justifyContent: 'center',
     },
     checkboxSelected: { backgroundColor: colors.electricBlue, borderColor: colors.electricBlue },
-    checkmark: { color: '#fff', fontSize: 14, fontFamily: fonts.bodyBold },
     importBtn: {
         backgroundColor: colors.successEmerald, borderRadius: borderRadius.md,
         paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.lg,

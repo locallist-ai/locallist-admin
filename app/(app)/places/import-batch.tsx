@@ -15,6 +15,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import Papa from 'papaparse';
 import { api } from '../../../src/lib/api';
 import { colors, fonts, spacing, borderRadius } from '../../../src/lib/theme';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -272,9 +273,18 @@ export default function ImportBatchScreen() {
                                 : t('importBatch.doneProcessed', { total: String(progress.total) })}
                         </Text>
                         <View style={styles.statsRow}>
-                            <Text style={[styles.stat, styles.statCreated]}>{t('importBatch.statCreated', { count: progress.created })}</Text>
-                            <Text style={[styles.stat, styles.statSkipped]}>{t('importBatch.statDuplicates', { count: progress.skipped })}</Text>
-                            <Text style={[styles.stat, styles.statFailed]}>{t('importBatch.statErrors', { count: progress.failed })}</Text>
+                            <View style={styles.statItem}>
+                                <MaterialCommunityIcons name="check" size={14} color={colors.successEmerald} />
+                                <Text style={[styles.stat, styles.statCreated]}>{t('importBatch.statCreated', { count: progress.created })}</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                                <MaterialCommunityIcons name="content-copy" size={14} color={colors.textSecondary} />
+                                <Text style={[styles.stat, styles.statSkipped]}>{t('importBatch.statDuplicates', { count: progress.skipped })}</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                                <MaterialCommunityIcons name="close" size={14} color={colors.error} />
+                                <Text style={[styles.stat, styles.statFailed]}>{t('importBatch.statErrors', { count: progress.failed })}</Text>
+                            </View>
                         </View>
 
                         {/* Progress bar */}
@@ -388,6 +398,7 @@ const styles = StyleSheet.create({
     },
     progressTitle: { fontSize: 15, fontFamily: fonts.bodySemiBold, color: colors.textMain, marginBottom: 8 },
     statsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: 10, flexWrap: 'wrap' },
+    statItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     stat: { fontSize: 13, fontFamily: fonts.bodySemiBold },
     statCreated: { color: colors.successEmerald },
     statSkipped: { color: colors.textSecondary },

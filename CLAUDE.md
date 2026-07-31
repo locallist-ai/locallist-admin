@@ -20,7 +20,7 @@ When the user says "admin", "erp", "admin app", they mean this project (`LocalLi
 - Selector: `src/components/LanguageToggle.tsx` (toggle EN/ES accesible en el `DashboardHeader`).
 - **Paridad EN/ES obligatoria**: `src/__tests__/i18nParity.test.ts` falla ante cualquier drift de claves o placeholders (y prohíbe em-dash en strings).
 - Uso: `t('key')`, nunca literales visibles. Añade claves a `en.ts` **y** `es.ts`.
-- **Fase 1 (hecha)**: traducidas la pantalla de Analíticas (`app/(app)/analytics.tsx` + `src/components/AnalyticsBlocks.tsx`), la pantalla de **Facturación** (`app/(app)/billing.tsx`, namespace `billing.*`) y los títulos de navegación (`app/(app)/_layout.tsx`). El resto del admin (editores de place/plan, dashboard, imports) sigue en inglés hardcodeado — pendiente de una fase posterior; la infra ya está lista para migrarlo.
+- **Estado (hecho, #42)**: el admin está **completamente traducido a EN+ES**. Cubierto: editores de place/plan (`app/(app)/place/*`, `app/(app)/plans/*`), dashboard, imports (`import-batch`, `import-google`, `backfill-descriptions`), Analíticas (`app/(app)/analytics.tsx` + `src/components/AnalyticsBlocks.tsx`), Facturación (`app/(app)/billing.tsx`, namespace `billing.*`), auth/login y los títulos de navegación (`app/(app)/_layout.tsx`). Ya no queda copy visible en inglés hardcodeado; la paridad EN/ES la impone `src/__tests__/i18nParity.test.ts`.
 
 ## Firebase Config
 
