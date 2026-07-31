@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { PlaceData } from '../types/place';
 import { colors, fonts, borderRadius } from '../lib/theme';
 
@@ -134,7 +135,13 @@ export default function SwipeCard({ place, isTop, onApprove, onReject, showButto
                 <Text style={styles.subText}>
                     {place.category}
                     {place.neighborhood ? ` · ${place.neighborhood}` : ''}
-                    {place.googleRating ? ` · ★ ${place.googleRating}` : ''}
+                    {place.googleRating ? (
+                        <>
+                            {' · '}
+                            <MaterialCommunityIcons name="star" size={12} color="#94a3b8" />
+                            {` ${place.googleRating}`}
+                        </>
+                    ) : ''}
                     {place.googleReviewCount ? ` (${place.googleReviewCount})` : ''}
                 </Text>
 

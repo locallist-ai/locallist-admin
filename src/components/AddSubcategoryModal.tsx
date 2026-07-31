@@ -9,6 +9,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, fonts, spacing, borderRadius } from '../lib/theme';
 import BaseModal, { baseModalStyles } from './BaseModal';
 import {
@@ -162,7 +163,7 @@ export default function AddSubcategoryModal({
                                         disabled={saving}
                                         hitSlop={8}
                                     >
-                                        <Text style={styles.removeBtnText}>✕</Text>
+                                        <MaterialCommunityIcons name="close" size={14} color={colors.textSecondary} />
                                     </Pressable>
                                 )}
 
@@ -259,11 +260,6 @@ const styles = StyleSheet.create({
         top: spacing.xs,
         right: spacing.xs,
         zIndex: 1,
-    },
-    removeBtnText: {
-        color: colors.textSecondary,
-        fontSize: 14,
-        fontFamily: fonts.bodySemiBold,
     },
     fieldLabel: {
         fontSize: 12,
