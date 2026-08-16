@@ -30,6 +30,7 @@ export default {
     a11y: 'Cambiar idioma',
   },
   nav: {
+    back: 'Atrás',
     curationQueue: 'Cola de curación',
     analytics: 'Analíticas',
     billing: 'Facturación',

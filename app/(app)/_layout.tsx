@@ -1,6 +1,31 @@
-import { Stack } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Stack, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { colors } from '../../src/lib/theme';
+import { Pressable, StyleSheet } from 'react-native';
+import { colors, spacing } from '../../src/lib/theme';
+
+function HeaderBackButton() {
+    const { t } = useTranslation();
+    const router = useRouter();
+    const goBack = () => {
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/(app)');
+        }
+    };
+    return (
+        <Pressable
+            onPress={goBack}
+            accessibilityRole="button"
+            accessibilityLabel={t('nav.back')}
+            hitSlop={8}
+            style={styles.backButton}
+        >
+            <MaterialCommunityIcons name="chevron-left" size={28} color={colors.deepOcean} />
+        </Pressable>
+    );
+}
 
 export default function AppLayout() {
     const { t } = useTranslation();
@@ -9,6 +34,7 @@ export default function AppLayout() {
             screenOptions={{
                 headerStyle: { backgroundColor: colors.bgMain },
                 headerTintColor: colors.deepOcean,
+                headerLeft: () => <HeaderBackButton />,
             }}
         >
             <Stack.Screen
@@ -63,3 +89,10 @@ export default function AppLayout() {
         </Stack>
     );
 }
+
+const styles = StyleSheet.create({
+    backButton: {
+        paddingVertical: spacing.xs,
+        paddingRight: spacing.sm,
+    },
+});
