@@ -26,8 +26,22 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
+      # Security audit gate. Uses audit-ci (same tooling as the app repo) so a
+      # single advisory with no fixed release can be narrowly allow-listed
+      # instead of dropping --audit-level or force-fixing (which would break the
+      # Expo SDK 57 build).
+      #
+      # TEMPORARY allowlist — image-size DoS advisories GHSA-w3rx-r6r6-pgpr
+      # (ICNS infinite loop) and GHSA-5p2g-fcmc-qvqq (JXL/HEIF infinite loops).
+      # image-size is pulled in only by metro (Expo SDK 57 / RN 0.86 BUILD
+      # tooling) to read image dimensions at bundle time; it is never shipped in
+      # the app/web runtime, so exposure is nil. Every published version
+      # (<= 2.0.2, the latest) is affected with NO patched release, and metro
+      # pins image-size ^1 — overriding it would break Metro / the Vercel web
+      # build. REMOVE this allowlist once a future Expo/metro bump ships a
+      # non-vulnerable image-size.
       - name: Run Security Audit
-        run: npm audit --audit-level=high
+        run: npx audit-ci@^7 --high --allowlist GHSA-w3rx-r6r6-pgpr GHSA-5p2g-fcmc-qvqq
 
       - name: Type Check
         run: npx tsc --noEmit
