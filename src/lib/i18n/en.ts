@@ -190,6 +190,7 @@ export default {
     translatingPlans: 'Translating plans…',
     batchFailed: 'Batch translate failed: {{error}}',
     batchDone: 'Translated: {{translated}}, Failed: {{failed}}',
+    batchStarting: 'Starting…',
   },
   placesList: {
     queue: 'Queue',

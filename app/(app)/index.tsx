@@ -51,6 +51,10 @@ export default function DashboardScreen() {
     const [createMenuVisible, setCreateMenuVisible] = useState(false);
     const [batchProgress, setBatchProgress] = useState<{ label: string; current: number; total: number } | null>(null);
     const batchCancelRef = useRef<AbortController | null>(null);
+    // Synchronous in-flight guard: flips true BEFORE the first await so a second
+    // trigger on the same tick (double-click, or the other mode's button) is a
+    // no-op even before React re-renders and disables the buttons.
+    const batchRunningRef = useRef(false);
     const [refreshing, setRefreshing] = useState(false);
 
     const handleTabSelect = (tab: StatusTab) => {
@@ -76,27 +80,48 @@ export default function DashboardScreen() {
         endpoint: '/admin/places/translate-batch' | '/admin/plans/translate-batch',
         label: string,
     ) => {
+        // (1) In-flight guard, checked before any await: a concurrent trigger
+        // returns here and never spawns a second loop.
+        if (batchRunningRef.current) return;
+        batchRunningRef.current = true;
+
+        // (2) Disable the buttons on THIS tick. translateDisabled/disabled read
+        // !!batchProgress, so setting it synchronously (before the first
+        // round-trip) closes the window a second trigger used to slip through.
+        // total:0 renders an indeterminate "starting…"; runBatchTranslate fixes
+        // the real total on the first chunk via onProgress.
+        setBatchProgress({ label, current: 0, total: 0 });
+
+        // (3) Defense-in-depth: abort any stray prior controller before taking
+        // over the ref (harmless if null). The guard above makes this
+        // unreachable, but it is cheap insurance against a leaked loop.
+        batchCancelRef.current?.abort();
         const controller = new AbortController();
         batchCancelRef.current = controller;
 
-        const result = await runBatchTranslate(
-            async () => {
-                const res = await api<BatchChunk>(`${endpoint}?limit=10`, {
-                    method: 'POST', timeoutMs: 60_000, signal: controller.signal,
-                });
-                return { data: res.data, error: res.error ?? null };
-            },
-            controller.signal,
-            ({ current, total }) => setBatchProgress({ label, current, total }),
-        );
+        try {
+            const result = await runBatchTranslate(
+                async () => {
+                    const res = await api<BatchChunk>(`${endpoint}?limit=10`, {
+                        method: 'POST', timeoutMs: 60_000, signal: controller.signal,
+                    });
+                    return { data: res.data, error: res.error ?? null };
+                },
+                controller.signal,
+                ({ current, total }) => setBatchProgress({ label, current, total }),
+            );
 
-        setBatchProgress(null);
-        batchCancelRef.current = null;
-
-        if (result.error) {
-            showAlert(t('common.error'), t('dashboard.batchFailed', { error: result.error ?? '' }));
-        } else if (!result.aborted) {
-            showAlert(t('common.done'), t('dashboard.batchDone', { translated: String(result.translated), failed: String(result.failed) }));
+            if (result.error) {
+                showAlert(t('common.error'), t('dashboard.batchFailed', { error: result.error ?? '' }));
+            } else if (!result.aborted) {
+                showAlert(t('common.done'), t('dashboard.batchDone', { translated: String(result.translated), failed: String(result.failed) }));
+            }
+        } finally {
+            // Clears on success, error AND abort so the buttons re-enable and a
+            // new run can start.
+            setBatchProgress(null);
+            batchCancelRef.current = null;
+            batchRunningRef.current = false;
         }
     };
 
@@ -293,7 +318,11 @@ export default function DashboardScreen() {
                         <ActivityIndicator color={colors.electricBlue} size="large" />
                         <Text style={styles.batchOverlayLabel}>{batchProgress?.label}</Text>
                         <Text style={styles.batchOverlayCount}>
-                            {batchProgress ? `${batchProgress.current} / ${batchProgress.total}` : ''}
+                            {batchProgress
+                                ? (batchProgress.total > 0
+                                    ? `${batchProgress.current} / ${batchProgress.total}`
+                                    : t('dashboard.batchStarting'))
+                                : ''}
                         </Text>
                         <Pressable
                             onPress={() => { batchCancelRef.current?.abort(); setBatchProgress(null); }}
