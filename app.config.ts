@@ -1,4 +1,4 @@
-import { ExpoConfig, ConfigContext } from '@expo/config';
+import { ExpoConfig, ConfigContext } from 'expo/config';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -31,12 +31,6 @@ export default ({ config }: ConfigContext): ExpoConfig & { main?: string } => ({
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
-    newArchEnabled: true,
-    splash: {
-        image: './assets/splash-icon.png',
-        resizeMode: 'contain',
-        backgroundColor: '#F2EFE9',
-    },
     ios: {
         supportsTablet: true,
         bundleIdentifier: 'com.locallist.admin',
@@ -48,7 +42,6 @@ export default ({ config }: ConfigContext): ExpoConfig & { main?: string } => ({
             foregroundImage: './assets/adaptive-icon.png',
             backgroundColor: '#F2EFE9',
         },
-        edgeToEdgeEnabled: true,
         predictiveBackGestureEnabled: false,
         package: 'com.locallist.admin',
     },
@@ -58,6 +51,14 @@ export default ({ config }: ConfigContext): ExpoConfig & { main?: string } => ({
         'expo-router',
         '@react-native-google-signin/google-signin',
         'expo-font',
+        [
+            'expo-splash-screen',
+            {
+                image: './assets/splash-icon.png',
+                resizeMode: 'contain',
+                backgroundColor: '#F2EFE9',
+            },
+        ],
     ],
     extra: {
         router: {},
