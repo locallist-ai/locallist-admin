@@ -188,6 +188,7 @@ export default {
     translatingPlans: 'Traduciendo planes…',
     batchFailed: 'La traducción en lote falló: {{error}}',
     batchDone: 'Traducidos: {{translated}}, Fallidos: {{failed}}',
+    batchStarting: 'Empezando…',
   },
   placesList: {
     queue: 'Cola',
