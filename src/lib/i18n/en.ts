@@ -32,6 +32,7 @@ export default {
     a11y: 'Change language',
   },
   nav: {
+    back: 'Back',
     curationQueue: 'Curation Queue',
     analytics: 'Analytics',
     billing: 'Billing',
