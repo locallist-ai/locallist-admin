@@ -29,7 +29,7 @@ export default {
     label: 'Language',
     english: 'English',
     spanish: 'Spanish',
-    a11y: 'Change language',
+    a11y: 'Switch to {{language}}',
   },
   nav: {
     back: 'Back',
