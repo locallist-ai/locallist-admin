@@ -220,8 +220,8 @@ export default function PlaceEditScreen() {
                     }
                 />
 
-                {/* Section: Translations (ES) — curated only */}
-                {place?.source === 'curated' && (
+                {/* Section: Translations (ES) — any published place (curated or google-imported) */}
+                {place?.status === 'published' && (
                     <>
                         <Text style={styles.sectionTitle}>{t('placeEdit.sectionTranslation')}</Text>
                         <View style={styles.section}>
